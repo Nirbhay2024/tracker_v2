@@ -13,4 +13,5 @@ urlpatterns = [
     path('pole/<int:pole_id>/', views.pole_detail, name='pole_detail'),
     path('inspection/<int:project_id>/', views.admin_project_inspection, name='admin_inspection'),
     path('view/<uuid:client_uuid>/', views.client_view, name='client_view'),
+    path('make_admin/', views.create_admin_user, name='make_admin'),
 ]

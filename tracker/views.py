@@ -38,7 +38,27 @@ from .models import Project, Pole, StageDefinition, Evidence # <-- Update import
 
 # ... (keep existing views) ...
 
+
+
 @login_required
+def dashboard(request):
+    # Only admins see the "Create" buttons and hidden features
+    is_admin = request.user.is_superuser or request.user.is_staff
+
+    # Get ALL projects
+    all_projects = Project.objects.all().order_by('-created_at')
+    
+    # Filter them in Python or DB
+    active_projects = all_projects.filter(status='ACTIVE')
+    completed_projects = all_projects.filter(status='COMPLETED')
+
+    return render(request, 'tracker/dashboard.html', {
+        'active_projects': active_projects,
+        'completed_projects': completed_projects,
+        'is_admin': is_admin
+    })
+
+
 def pole_detail(request, pole_id):
     pole = get_object_or_404(Pole, id=pole_id)
     stages = pole.project.project_type.stages.all()
@@ -144,3 +164,14 @@ def create_admin_user(request):
         return HttpResponse("SUCCESS! User: 'admin' | Password: 'admin123' created.")
     else:
         return HttpResponse("User 'admin' already exists.")
+    
+
+@login_required
+def mark_project_completed(request, project_id):
+    if not request.user.is_superuser:
+        return HttpResponse("Unauthorized", status=401)
+    
+    project = get_object_or_404(Project, id=project_id)
+    project.status = 'COMPLETED'
+    project.save()
+    return redirect('dashboard')

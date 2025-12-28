@@ -37,15 +37,31 @@ class StageDefinition(models.Model):
 
 # 3. PROJECTS & POLES
 class Project(models.Model):
-    name = models.CharField(max_length=100)
+    STATUS_CHOICES = [
+        ('ACTIVE', 'Active'),
+        ('COMPLETED', 'Completed'),
+    ]
+    
+    name = models.CharField(max_length=200)
     project_type = models.ForeignKey(ProjectType, on_delete=models.PROTECT)
     client_uuid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
-    contractors = models.ManyToManyField(User, related_name='assigned_projects', limit_choices_to={'role': 'CONTRACTOR'})
     created_at = models.DateTimeField(auto_now_add=True)
+    
+    # NEW FIELD
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='ACTIVE')
 
     def __str__(self):
         return self.name
 
+    # Helper to calculate progress percentage
+    def progress(self):
+        total_poles = self.poles.count()
+        if total_poles == 0: return 0
+        # Count poles where all stages are done (simplest way)
+        # Or you can get more complex later. For now, let's just return a placeholder or 
+        # calculate based on "Is the last stage done?"
+        return 0 # We will improve this logic in the template for now
+    
 class Pole(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='poles')
     identifier = models.CharField(max_length=50) # e.g. "Pole #1"

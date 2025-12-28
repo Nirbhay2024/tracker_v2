@@ -2,6 +2,9 @@ from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
 from .models import Project
 
+from django.contrib.auth.models import User
+from django.http import HttpResponse
+
 @login_required
 def contractor_dashboard(request):
     # Only show projects assigned to this specific worker
@@ -132,3 +135,12 @@ def client_view(request, client_uuid):
         'progress': progress
     })
 
+# TEMPORARY FUNCTION - DELETE AFTER USE
+def create_admin_user(request):
+    # Check if the user 'admin' already exists
+    if not User.objects.filter(username='admin').exists():
+        # Create the superuser
+        User.objects.create_superuser('admin', 'admin@example.com', 'admin123')
+        return HttpResponse("SUCCESS! User: 'admin' | Password: 'admin123' created.")
+    else:
+        return HttpResponse("User 'admin' already exists.")

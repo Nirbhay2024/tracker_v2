@@ -175,3 +175,30 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 LOGIN_URL = 'login' 
 LOGIN_REDIRECT_URL = 'dashboard'
 LOGOUT_REDIRECT_URL = 'login'
+
+
+# ==========================================
+# SECURITY & SESSION HARDENING
+# ==========================================
+
+# 1. AUTO-LOGOUT: Users are kicked out after 30 minutes of inactivity
+SESSION_COOKIE_AGE = 30 * 60  # 30 minutes in seconds
+SESSION_SAVE_EVERY_REQUEST = True  # Reset the timer if they are active
+
+# 2. DEVICE ISOLATION: Closing the browser = Logging out
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+
+# 3. COOKIE SECURITY: Prevent hackers (and sync features) from stealing cookies
+SESSION_COOKIE_SECURE = True   # Only send cookies over HTTPS
+SESSION_COOKIE_HTTPONLY = True # Prevent JavaScript from reading cookies
+CSRF_COOKIE_SECURE = True      # Encrypt the CSRF token
+CSRF_COOKIE_HTTPONLY = True
+
+# 4. PREVENT CACHING: Tell the phone "Do not save this page"
+# (This ensures the dashboard always reloads fresh from the server)
+CACHE_MIDDLEWARE_SECONDS = 0
+
+# 5. STRICT BROWSER RULES
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = 'DENY'       # Prevents your site from being put in an iframe

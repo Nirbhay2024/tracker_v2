@@ -3,6 +3,7 @@ from django.contrib.auth.decorators import login_required
 from .models import Project
 from django.contrib.auth import get_user_model  # <--- ADD THIS
 from django.http import HttpResponse
+from django.views.decorators.cache import never_cache
 
 @login_required
 def contractor_dashboard(request):
@@ -39,7 +40,7 @@ from .models import Project, Pole, StageDefinition, Evidence # <-- Update import
 # ... (keep existing views) ...
 
 
-
+@never_cache
 @login_required
 def dashboard(request):
     # Only admins see the "Create" buttons and hidden features

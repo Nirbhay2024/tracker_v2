@@ -1,8 +1,7 @@
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
 from .models import Project
-
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model  # <--- ADD THIS
 from django.http import HttpResponse
 
 @login_required
@@ -137,7 +136,8 @@ def client_view(request, client_uuid):
 
 # TEMPORARY FUNCTION - DELETE AFTER USE
 def create_admin_user(request):
-    # Check if the user 'admin' already exists
+    User = get_user_model()  # <--- This asks Django for the CORRECT user model
+    
     if not User.objects.filter(username='admin').exists():
         # Create the superuser
         User.objects.create_superuser('admin', 'admin@example.com', 'admin123')

@@ -33,8 +33,16 @@ SECRET_KEY = 'django-insecure-%teu+=y_bs-@_61w^f7nkau#+sudi^5nw5*gkhq(+fw^!uks^3
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    'tracker-r7wq.onrender.com',  # <--- Your new Render URL
+    'localhost',
+    '127.0.0.1'
+]
 
+CSRF_TRUSTED_ORIGINS = [
+    'https://tracker-r7wq.onrender.com',  # <--- Note the HTTPS://
+    'http://127.0.0.1:8000',
+]
 
 # Application definition
 

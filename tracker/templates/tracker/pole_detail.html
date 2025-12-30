@@ -4,62 +4,83 @@
 {% block content %}
 <div class="container py-4">
     
-    <div class="card shadow-sm mb-4 border-0">
-        <div class="card-body">
-            <h2 class="fw-bold text-dark">{{ pole.project.name }}</h2>
-            <h4 class="text-muted">Pole: {{ pole.identifier }}</h4>
+    <div class="card shadow-sm mb-4 border-0 rounded-4">
+        <div class="card-body p-4">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h5 class="text-muted mb-1">{{ pole.project.name }}</h5>
+                    <h2 class="fw-bold text-dark mb-0">{{ pole.identifier }}</h2>
+                </div>
+                <a href="{% url 'project_detail' pole.project.id %}" class="btn btn-outline-secondary rounded-pill">
+                    &larr; Back
+                </a>
+            </div>
             
+            <hr class="my-3 opacity-25">
+
             {% if pole.is_completed %}
-                <div class="alert alert-success mt-3 fw-bold">
-                    ✅ All Stages Completed!
+                <div class="alert alert-success fw-bold d-flex align-items-center rounded-3">
+                    <i class="bi bi-check-circle-fill fs-4 me-2"></i> All Stages Completed!
                 </div>
             {% else %}
-                <div class="progress mt-3" style="height: 25px;">
-                    <div class="progress-bar bg-warning text-dark" role="progressbar" 
+                <div class="d-flex justify-content-between mb-1">
+                    <small class="fw-bold text-dark">Progress</small>
+                    <small class="text-muted">{{ pole.progress_percent }}%</small>
+                </div>
+                <div class="progress" style="height: 15px; border-radius: 10px;">
+                    <div class="progress-bar bg-primary" role="progressbar" 
                          style="width: {{ pole.progress_percent }}%">
-                         In Progress
                     </div>
                 </div>
             {% endif %}
         </div>
     </div>
 
-    <h3 class="mb-3">Construction Stages</h3>
+    <h4 class="mb-3 fw-bold text-dark">Construction Stages</h4>
 
-    <div class="row">
+    <div class="row g-4">
         {% for stage in stages %}
-            <div class="col-md-6 col-lg-4 mb-4">
-                <div class="card h-100 shadow-sm {% if stage.id in evidence_map %}border-success{% endif %}">
+            <div class="col-md-6 col-lg-4">
+                <div class="card h-100 shadow-sm border-0 rounded-4 overflow-hidden position-relative">
                     
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <span class="fw-bold">{{ stage.name }}</span>
-                        <span class="badge bg-secondary">Step {{ stage.order }}</span>
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center py-3 border-0">
+                        <span class="fw-bold fs-5">{{ stage.name }}</span>
+                        {% if stage.id in evidence_map %}
+                            <span class="badge bg-success rounded-pill">Done</span>
+                        {% else %}
+                            <span class="badge bg-secondary rounded-pill text-light opacity-50">Pending</span>
+                        {% endif %}
                     </div>
 
-                    <div class="card-body">
+                    <div class="card-body text-center d-flex flex-column justify-content-center p-4 bg-light">
                         
                         {% if stage.id in evidence_map %}
                             {% with evidence=evidence_map|get_item:stage.id %}
-                                <div class="text-center mb-3">
-                                    <img src="{{ evidence.image.url }}" class="img-fluid rounded border" alt="Proof">
+                                <div class="position-relative mb-3 group-hover">
+                                    <img src="{{ evidence.image.url }}" 
+                                         class="img-fluid rounded-3 shadow-sm cursor-pointer hover-scale" 
+                                         style="height: 200px; width: 100%; object-fit: cover;"
+                                         onclick="openImageModal('{{ evidence.image.url }}', '{{ stage.name }}')">
+                                    
+                                    <div class="mt-2 text-muted small">
+                                        <i class="bi bi-clock"></i> {{ evidence.captured_at|date:"M d, H:i" }}
+                                    </div>
                                 </div>
-                                <div class="d-grid">
-                                    <a href="{% url 'delete_evidence' evidence.id %}" 
-                                       class="btn btn-outline-danger btn-sm"
-                                       onclick="return confirm('Delete this photo? You will need to upload a new one.');">
-                                        🗑 Delete & Replace
-                                    </a>
-                                </div>
+
+                                <a href="{% url 'delete_evidence' evidence.id %}" 
+                                   class="btn btn-outline-danger w-100 rounded-pill"
+                                   onclick="return confirm('Delete this photo? You will need to upload a new one.');">
+                                   <i class="bi bi-trash"></i> Delete & Replace
+                                </a>
                             {% endwith %}
 
                         {% else %}
-                            <div class="text-center py-3 bg-light rounded mb-3">
-                                <span class="text-muted">No photo yet</span>
+                            <div class="mb-3 text-muted opacity-50">
+                                <i class="bi bi-camera-fill display-4"></i>
                             </div>
-
-                            <button type="button" class="btn btn-primary w-100" 
+                            <button type="button" class="btn btn-primary w-100 rounded-pill py-2 fw-bold shadow-sm" 
                                     onclick="openCamera('{{ stage.id }}', '{{ stage.name }}')">
-                                📷 Upload Photo
+                                <i class="bi bi-upload me-2"></i> Upload Photo
                             </button>
                         {% endif %}
 
@@ -70,39 +91,35 @@
     </div>
 </div>
 
-
 <div class="modal fade" id="uploadModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header bg-dark text-white">
-                <h5 class="modal-title">Upload for: <span id="modalStageName"></span></h5>
+        <div class="modal-content border-0 rounded-4">
+            <div class="modal-header bg-primary text-white rounded-top-4">
+                <h5 class="modal-title">Upload for: <span id="modalStageName" class="fw-bold"></span></h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             
             <form method="post" enctype="multipart/form-data" id="uploadForm">
                 {% csrf_token %}
-                <div class="modal-body">
+                <div class="modal-body p-4">
                     
                     <input type="hidden" name="stage_id" id="inputStageId">
-                    
                     <input type="hidden" name="gps_lat" id="lat">
                     <input type="hidden" name="gps_long" id="lon">
 
-                    <div class="mb-3 text-center">
-                        <label class="form-label fw-bold">Select Photo</label>
-                        
-                        <input type="file" name="image" class="form-control" accept="image/*" capture="environment" required>
-                        
-                        <div class="form-text">Location will be stamped automatically.</div>
+                    <div class="mb-4 text-center">
+                        <label class="form-label fw-bold mb-3">Take a Photo</label>
+                        <input type="file" name="image" class="form-control form-control-lg" accept="image/*" capture="environment" required>
                     </div>
 
-                    <div id="locationStatus" class="alert alert-info py-1 small">
-                        Getting GPS location...
+                    <div id="locationStatus" class="d-flex align-items-center justify-content-center gap-2 p-2 rounded bg-light text-muted small">
+                        <div class="spinner-border spinner-border-sm" role="status"></div>
+                        <span>Acquiring Location...</span>
                     </div>
 
                 </div>
-                <div class="modal-footer">
-                    <button type="submit" class="btn btn-success w-100" id="submitBtn">
+                <div class="modal-footer border-0 p-3">
+                    <button type="submit" class="btn btn-success w-100 btn-lg rounded-pill" id="submitBtn">
                         Confirm Upload
                     </button>
                 </div>
@@ -111,51 +128,80 @@
     </div>
 </div>
 
+<div class="modal fade" id="imageModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content bg-transparent border-0">
+            <div class="modal-body text-center position-relative p-0">
+                <button type="button" class="btn-close btn-close-white position-absolute top-0 end-0 m-3 z-3" data-bs-dismiss="modal"></button>
+                <img id="enlargedImage" src="" class="img-fluid rounded shadow-lg" style="max-height: 90vh;">
+                <div class="mt-2">
+                    <span id="imageCaption" class="badge bg-dark fs-6 px-3 py-2"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
 <script>
-    // OPEN CAMERA
+    // --- 1. IMAGE ENLARGE LOGIC ---
+    function openImageModal(url, caption) {
+        document.getElementById('enlargedImage').src = url;
+        document.getElementById('imageCaption').innerText = caption;
+        new bootstrap.Modal(document.getElementById('imageModal')).show();
+    }
+
+    // --- 2. UPLOAD & GPS LOGIC ---
     function openCamera(stageId, stageName) {
         document.getElementById('inputStageId').value = stageId;
         document.getElementById('modalStageName').innerText = stageName;
         
-        // --- CHANGE 1: DO NOT DISABLE THE BUTTON ---
-        // We want to allow immediate upload so we can use EXIF data.
+        // Reset status
         document.getElementById("submitBtn").disabled = false; 
-        
-        document.getElementById("locationStatus").innerText = "Ready to upload. (Will check photo for GPS)";
-        document.getElementById("locationStatus").className = "alert alert-secondary py-1 small";
+        var status = document.getElementById("locationStatus");
+        status.className = "d-flex align-items-center justify-content-center gap-2 p-2 rounded bg-light text-muted small";
+        status.innerHTML = '<div class="spinner-border spinner-border-sm"></div> <span>Acquiring Location...</span>';
 
         var myModal = new bootstrap.Modal(document.getElementById('uploadModal'));
         myModal.show();
 
-        // We still try to get browser GPS in the background as a backup,
-        // but we don't wait for it.
+        // Start GPS fetch
         getLocation();
     }
 
-    // GET LOCATION (Background Process)
     function getLocation() {
         if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(showPosition, showError, {timeout: 5000});
+            navigator.geolocation.getCurrentPosition(showPosition, showError, {timeout: 10000, enableHighAccuracy: true});
+        } else {
+            showError();
         }
     }
 
     function showPosition(position) {
-        // If browser GPS is found fast enough, we use it!
         document.getElementById("lat").value = position.coords.latitude.toFixed(6);
         document.getElementById("lon").value = position.coords.longitude.toFixed(6);
         
         var status = document.getElementById("locationStatus");
-        status.className = "alert alert-success py-1 small";
-        status.innerHTML = "📍 Browser GPS Locked! (Optional)";
+        status.className = "alert alert-success py-2 small mb-0 text-center fw-bold";
+        status.innerHTML = '<i class="bi bi-geo-alt-fill"></i> Location Locked';
     }
 
     function showError(error) {
-        console.log("Browser GPS failed (using Photo EXIF instead)");
-        // Do nothing to the UI, just let the user upload.
+        console.log("GPS Timeout/Error");
+        var status = document.getElementById("locationStatus");
+        status.className = "alert alert-warning py-2 small mb-0 text-center";
+        status.innerHTML = "⚠️ GPS Weak - Using Photo Data";
     }
 </script>
 
-
+<style>
+    .hover-scale:hover {
+        transform: scale(1.02);
+        transition: transform 0.2s ease-in-out;
+        cursor: zoom-in;
+    }
+    .cursor-pointer {
+        cursor: pointer;
+    }
+</style>
 
 {% endblock %}

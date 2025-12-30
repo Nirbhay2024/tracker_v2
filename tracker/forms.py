@@ -46,3 +46,8 @@ class ItemFieldDefinitionForm(forms.ModelForm):
                 self.fields['excel_column'].choices = [('', 'No headers found')]
         else:
             self.fields['excel_column'].choices = [('', 'Save Project & Upload File First')]
+
+
+# Add to forms.py
+class IssueForm(forms.Form):
+    message = forms.CharField(widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Describe the issue (e.g. Photo is blurry, Pole is leaning)...'}))

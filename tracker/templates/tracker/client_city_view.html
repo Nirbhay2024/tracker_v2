@@ -2,6 +2,7 @@
 
 {% block content %}
 <div class="container-fluid py-4">
+    
     <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
         <div>
             <h1 class="fw-bold m-0">{{ project.name }}</h1>
@@ -12,6 +13,15 @@
             <span class="d-block small text-muted">Completed</span>
         </div>
     </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
 
     <div class="accordion" id="villageAccordion">
         {% for village_name, data in grouped_data.items %}
@@ -39,21 +49,34 @@
                     <div class="row g-3">
                         {% for item in data.poles %}
                         <div class="col-md-6 col-xl-4">
-                            <div class="card h-100 border shadow-sm">
+                            
+                            <div class="card h-100 shadow-sm {% if item.has_issue %}border-danger border-2{% else %}border{% endif %}">
+                                
                                 <div class="card-header d-flex justify-content-between align-items-center bg-white">
-                                    <strong>{{ item.pole.identifier }}</strong>
-                                    {% if item.pole.is_completed %}
-                                    <span class="badge bg-success">Done</span>
-                                    {% else %}
-                                    <span class="badge bg-warning text-dark">In Progress</span>
-                                    {% endif %}
+                                    <strong class="{% if item.has_issue %}text-danger{% endif %}">
+                                        {{ item.pole.identifier }}
+                                    </strong>
+                                    <div>
+                                        {% if item.has_issue %}
+                                            <span class="badge bg-danger me-2">Issue Open</span>
+                                        {% elif item.pole.is_completed %}
+                                            <span class="badge bg-success me-2">Done</span>
+                                        {% else %}
+                                            <span class="badge bg-warning text-dark me-2">In Progress</span>
+                                        {% endif %}
+                                        
+                                        <button class="btn btn-outline-danger btn-sm border-0" title="Report Issue" onclick="openFlagModal('{{ item.pole.id }}', '{{ item.pole.identifier }}')">
+                                            🚩
+                                        </button>
+                                    </div>
                                 </div>
                                 <div class="card-body">
                                     <div class="d-flex gap-2 overflow-auto">
                                         {% for photo in item.history %}
-                                        <a href="{{ photo.image.url }}" target="_blank">
-                                            <img src="{{ photo.image.url }}" class="rounded" style="height: 60px; width: 60px; object-fit: cover;">
-                                        </a>
+                                        <img src="{{ photo.image.url }}" 
+                                             class="rounded cursor-pointer hover-zoom" 
+                                             style="height: 80px; width: 80px; object-fit: cover; cursor: pointer;"
+                                             onclick="openImageModal('{{ photo.image.url }}', '{{ photo.stage.name }}')">
                                         {% empty %}
                                         <span class="text-muted small">No photos.</span>
                                         {% endfor %}
@@ -70,4 +93,57 @@
         {% endfor %}
     </div>
 </div>
+
+<div class="modal fade" id="imageModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content bg-transparent border-0">
+            <div class="modal-body text-center position-relative">
+                <button type="button" class="btn-close btn-close-white position-absolute top-0 end-0 m-3" data-bs-dismiss="modal"></button>
+                <img id="enlargedImage" src="" class="img-fluid rounded shadow-lg" style="max-height: 90vh;">
+                <p id="imageCaption" class="text-white mt-2 fw-bold bg-dark d-inline-block px-3 py-1 rounded"></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="flagModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">🚩 Report Issue</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="flagForm" method="post" action="">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <p>Reporting issue for: <strong id="flagPoleName"></strong></p>
+                    <div class="mb-3">
+                        <textarea name="message" class="form-control" rows="3" placeholder="Describe the issue..." required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger">Submit Report</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    function openImageModal(url, caption) {
+        document.getElementById('enlargedImage').src = url;
+        document.getElementById('imageCaption').innerText = caption;
+        new bootstrap.Modal(document.getElementById('imageModal')).show();
+    }
+    function openFlagModal(poleId, poleName) {
+        document.getElementById('flagPoleName').innerText = poleName;
+        document.getElementById('flagForm').action = "/issue/report/" + poleId + "/";
+        new bootstrap.Modal(document.getElementById('flagModal')).show();
+    }
+</script>
+
+<style>
+    .hover-zoom:hover { transform: scale(1.05); transition: transform 0.2s; border: 2px solid #0d6efd; }
+</style>
 {% endblock %}

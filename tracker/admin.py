@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from .models import User, ProjectType, StageDefinition, Project, Pole, Evidence, ItemFieldDefinition, ItemFieldValue, Client
 from .forms import ItemFieldDefinitionForm 
+from .models import ProjectIssue
 
 class CustomUserAdmin(UserAdmin):
     model = User
@@ -47,6 +48,17 @@ class ProjectAdmin(admin.ModelAdmin):
         ('Assignments', {'fields': ('contractors',)}),
         ('Data Source', {'fields': ('data_file',)}),
     )
+
+# Add this to admin.py
+
+@admin.register(ProjectIssue)
+class ProjectIssueAdmin(admin.ModelAdmin):
+    list_display = ('pole', 'message', 'status', 'created_at')
+    list_filter = ('status', 'created_at')
+    actions = ['mark_resolved']
+
+    def mark_resolved(self, request, queryset):
+        queryset.update(status='RESOLVED')
 
 admin.site.register(Pole)
 admin.site.register(Evidence)

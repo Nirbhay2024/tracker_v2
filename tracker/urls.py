@@ -23,4 +23,9 @@ urlpatterns = [
     # 2. PROJECT VIEW (The "Magic Link" for a specific City/Project)
     # RESTORED: Uses UUID so no login is required
     path('view/<uuid:client_uuid>/', views.client_city_view, name='client_view'),
+    path('issue/report/<int:pole_id>/', views.report_issue, name='report_issue'),
+
+    # Issue handeling 
+    path('project/<int:project_id>/issues/', views.project_issues, name='project_issues'),
+    path('issue/resolve/<int:issue_id>/', views.resolve_issue, name='resolve_issue'),
 ]

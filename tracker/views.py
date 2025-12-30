@@ -7,6 +7,8 @@ from django.http import HttpResponse
 from .models import Project, Pole, StageDefinition, Evidence, ItemFieldValue, Client
 from .forms import EvidenceForm, DynamicItemForm
 from .utils import watermark_image, get_gps_from_image
+from .models import ProjectIssue
+from .forms import IssueForm
 
 # ==========================================
 # 1. MAIN DASHBOARD
@@ -223,62 +225,6 @@ def client_dashboard(request, client_uuid):
     })
 
 def client_city_view(request, client_uuid):
-    """
-    LEVEL 2: Shows City -> Villages -> Poles
-    RESTORED: Accepts UUID so clients can view without login.
-    """
-    # Lookup by UUID (Secure Magic Link)
-    project = get_object_or_404(Project, client_uuid=client_uuid)
-    poles = project.poles.all()
-    
-    # Stats
-    total = poles.count()
-    done = poles.filter(is_completed=True).count()
-    progress = int((done/total)*100) if total > 0 else 0
-
-    # Grouping Logic
-    group_def = project.field_definitions.filter(is_grouping_key=True).first()
-    grouped_data = {}
-
-    if group_def:
-        for pole in poles:
-            val_obj = pole.custom_values.filter(field_def=group_def).first()
-            village_name = val_obj.value if (val_obj and val_obj.value) else "General / Other"
-            
-            if village_name not in grouped_data:
-                grouped_data[village_name] = {'poles': [], 'done': 0, 'total': 0}
-            
-            history = pole.evidence.all().order_by('stage__order')
-            grouped_data[village_name]['poles'].append({'pole': pole, 'history': history})
-            
-            grouped_data[village_name]['total'] += 1
-            if pole.is_completed:
-                grouped_data[village_name]['done'] += 1
-        
-        # Calculate percentages
-        for v_name, data in grouped_data.items():
-            data['percent'] = int((data['done'] / data['total']) * 100) if data['total'] > 0 else 0
-            
-        grouped_data = dict(sorted(grouped_data.items()))
-        
-    else:
-        grouped_data['All Locations'] = {'poles': [], 'done': done, 'total': total, 'percent': progress}
-        for pole in poles:
-            history = pole.evidence.all().order_by('stage__order')
-            grouped_data['All Locations']['poles'].append({'pole': pole, 'history': history})
-
-    return render(request, 'tracker/client_city_view.html', {
-        'project': project,
-        'grouped_data': grouped_data,
-        'progress': progress
-    })
-
-
-
-
-    """ The Public 'Magic Link' View for a specific City/Project """
-    
-    # 1. Look up project by UUID (Secure)
     project = get_object_or_404(Project, client_uuid=client_uuid)
     poles = project.poles.all()
     
@@ -286,38 +232,84 @@ def client_city_view(request, client_uuid):
     done = poles.filter(is_completed=True).count()
     progress = int((done/total)*100) if total > 0 else 0
 
-    # 2. Grouping Logic (City -> Village Hierarchy)
     group_def = project.field_definitions.filter(is_grouping_key=True).first()
     grouped_data = {}
 
     if group_def:
         for pole in poles:
             val_obj = pole.custom_values.filter(field_def=group_def).first()
-            village_name = val_obj.value if (val_obj and val_obj.value) else "General / Other"
+            village_name = val_obj.value if (val_obj and val_obj.value) else "General"
             
             if village_name not in grouped_data:
                 grouped_data[village_name] = {'poles': [], 'done': 0, 'total': 0}
             
             history = pole.evidence.all().order_by('stage__order')
-            grouped_data[village_name]['poles'].append({'pole': pole, 'history': history})
+            
+            # CHECK FOR SPECIFIC ISSUE ON THIS POLE
+            has_issue = pole.issues.filter(status='OPEN').exists()
+
+            grouped_data[village_name]['poles'].append({
+                'pole': pole,
+                'history': history,
+                'has_issue': has_issue # <--- Sending this to template
+            })
             
             grouped_data[village_name]['total'] += 1
             if pole.is_completed:
                 grouped_data[village_name]['done'] += 1
         
-        # Calc percentages
         for v_name, data in grouped_data.items():
             data['percent'] = int((data['done'] / data['total']) * 100) if data['total'] > 0 else 0
             
         grouped_data = dict(sorted(grouped_data.items()))
     else:
+        # Fallback logic
         grouped_data['All Locations'] = {'poles': [], 'done': done, 'total': total, 'percent': progress}
         for pole in poles:
             history = pole.evidence.all().order_by('stage__order')
-            grouped_data['All Locations']['poles'].append({'pole': pole, 'history': history})
+            has_issue = pole.issues.filter(status='OPEN').exists()
+            grouped_data['All Locations']['poles'].append({
+                'pole': pole, 
+                'history': history,
+                'has_issue': has_issue
+            })
 
     return render(request, 'tracker/client_city_view.html', {
         'project': project,
         'grouped_data': grouped_data,
         'progress': progress
     })
+
+def report_issue(request, pole_id):
+    pole = get_object_or_404(Pole, id=pole_id)
+    if request.method == 'POST':
+        form = IssueForm(request.POST)
+        if form.is_valid():
+            ProjectIssue.objects.create(
+                pole=pole,
+                message=form.cleaned_data['message']
+            )
+            messages.success(request, "Issue reported to the admin.")
+    
+    # Redirect back to the client view (we need the client_uuid)
+    return redirect('client_view', client_uuid=pole.project.client_uuid)
+
+@login_required
+def project_issues(request, project_id):
+    project = get_object_or_404(Project, id=project_id)
+    # Get all OPEN issues for this project
+    issues = ProjectIssue.objects.filter(pole__project=project, status='OPEN').order_by('-created_at')
+    
+    return render(request, 'tracker/project_issues.html', {
+        'project': project,
+        'issues': issues
+    })
+
+@login_required
+def resolve_issue(request, issue_id):
+    issue = get_object_or_404(ProjectIssue, id=issue_id)
+    issue.status = 'RESOLVED'
+    issue.save()
+    messages.success(request, "Issue marked as resolved.")
+    # Send user back to the issues list
+    return redirect('project_issues', project_id=issue.pole.project.id)

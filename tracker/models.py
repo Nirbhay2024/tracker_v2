@@ -53,6 +53,10 @@ class Project(models.Model):
         storage=RawMediaCloudinaryStorage() 
     )
 
+    @property
+    def has_open_issues(self):
+        return self.poles.filter(issues__status='OPEN').exists()
+
     def __str__(self): return self.name
 
 class ItemFieldDefinition(models.Model):
@@ -92,3 +96,15 @@ class Evidence(models.Model):
     gps_lat = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     gps_long = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     def __str__(self): return f"{self.pole.identifier} - {self.stage.name}"
+
+
+class ProjectIssue(models.Model):
+    STATUS_CHOICES = [('OPEN', 'Open'), ('RESOLVED', 'Resolved')]
+    pole = models.ForeignKey(Pole, on_delete=models.CASCADE, related_name='issues')
+    reported_by = models.CharField(max_length=100, default="Client")
+    message = models.TextField()
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='OPEN')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Issue on {self.pole.identifier}: {self.status}"

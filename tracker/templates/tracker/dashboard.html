@@ -33,18 +33,23 @@
         <div class="row">
             {% for project in active_projects %}
             <div class="col-md-6 col-lg-4 mb-4">
-                <div class="card shadow border-0 h-100">
+                
+                <div class="card shadow h-100 {% if project.has_open_issues %}border-danger border-2{% else %}border-0{% endif %}">
+                    
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-start">
                             <div>
                                 <h5 class="card-title fw-bold mb-1">{{ project.name }}</h5>
                                 <span class="badge bg-info text-dark mb-3">{{ project.project_type.name }}</span>
                             </div>
+                            
+                            {% if project.has_open_issues %}
+                                <span class="badge bg-danger animate-pulse">🚩 Issue Reported</span>
+                            {% endif %}
+                            
                             {% if is_admin %}
                             <div class="dropdown">
-                                <button class="btn btn-link text-dark p-0" type="button" data-bs-toggle="dropdown">
-                                    ⋮
-                                </button>
+                                <button class="btn btn-link text-dark p-0" type="button" data-bs-toggle="dropdown">⋮</button>
                                 <ul class="dropdown-menu dropdown-menu-end">
                                     <li><a class="dropdown-item" href="/admin/tracker/project/{{ project.id }}/change/">Edit Settings</a></li>
                                     <li><hr class="dropdown-divider"></li>
@@ -70,9 +75,16 @@
                         </div>
 
                         <div class="d-grid gap-2">
-                            <a href="{% url 'project_detail' project.id %}" class="btn btn-primary">
-                                Open Site
-                            </a>
+                            
+                            {% if is_admin and project.has_open_issues %}
+                                <a href="{% url 'project_issues' project.id %}" class="btn btn-danger fw-bold">
+                                    ⚠️ View Reported Issues
+                                </a>
+                            {% else %}
+                                <a href="{% url 'project_detail' project.id %}" class="btn btn-primary">
+                                    Open Site
+                                </a>
+                            {% endif %}
                             
                             {% if is_admin %}
                             <div class="btn-group" role="group">
@@ -124,7 +136,6 @@
 </div>
 
 <script>
-// FIXED: Constructs the correct Magic Link using /view/ and the UUID
 function copyLink(uuid) {
     const link = `${window.location.origin}/view/${uuid}/`;
     navigator.clipboard.writeText(link);

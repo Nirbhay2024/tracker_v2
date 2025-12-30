@@ -1,12 +1,31 @@
+import textwrap
+import openpyxl
 import csv
-import openpyxl 
 from PIL import Image, ImageDraw, ImageFont, ExifTags, ImageOps
 from io import BytesIO
 from django.core.files.base import ContentFile
+from django.contrib.staticfiles import finders
+from geopy.geocoders import Nominatim
 import datetime
 
 # ==========================================
-# 1. GPS & WATERMARK LOGIC
+# 1. ADDRESS LOOKUP (Reverse Geocoding)
+# ==========================================
+def get_address_from_coords(lat, lon):
+    if not lat or not lon:
+        return "Address Unavailable"
+    try:
+        # User-agent is required by Nominatim
+        geolocator = Nominatim(user_agent="tracker_app_v1")
+        location = geolocator.reverse((float(lat), float(lon)), exactly_one=True, timeout=5)
+        if location:
+            return location.address
+    except Exception as e:
+        print(f"DEBUG: Geocoding Failed: {e}")
+    return "Location Unknown"
+
+# ==========================================
+# 2. GPS EXTRACTION
 # ==========================================
 def _convert_to_degrees(value):
     d = float(value[0])
@@ -20,7 +39,7 @@ def get_gps_from_image(image_field):
         exif_data = img._getexif()
         if not exif_data: return None, None
         
-        gps_info = exif_data.get(34853) # 34853 is GPSInfo
+        gps_info = exif_data.get(34853)
         if not gps_info: return None, None
 
         lat_gps = gps_info.get(2)
@@ -38,105 +57,156 @@ def get_gps_from_image(image_field):
         pass
     return None, None
 
+# ==========================================
+# 3. WATERMARKING LOGIC (Advanced)
+# ==========================================
 def watermark_image(image_field, lat, lon):
     try:
-        img = Image.open(image_field)
-        img = ImageOps.exif_transpose(img)
-        img = img.convert('RGB')
-        draw = ImageDraw.Draw(img)
-        width, height = img.size
-        font_size = int(width * 0.04)
+        print("DEBUG: Processing Image for Watermark...")
         
-        try: font = ImageFont.truetype("arial.ttf", font_size)
-        except: font = ImageFont.load_default()
+        COMPANY_NAME = "Nexsafe"
+        
+        if lat and lon:
+            address_text = get_address_from_coords(lat, lon)
+            gps_text = f"Lat: {float(lat):.6f}, Lon: {float(lon):.6f}"
+        else:
+            address_text = "Location Not Captured"
+            gps_text = "GPS Unavailable"
 
-        draw.rectangle([(0, 0), (width, font_size * 2)], fill=(0, 0, 0, 160))
-        draw.text((20, 20), "Nexsafe", fill=(255, 165, 0), font=font)
+        # Load Image
+        img = Image.open(image_field)
+        img = ImageOps.exif_transpose(img) # Fix rotation
+        img = img.convert("RGBA") # RGBA for transparency
+        draw = ImageDraw.Draw(img)
+        W, H = img.size
+
+        # Fonts
+        try:
+            # Scale font relative to image height
+            font_title = ImageFont.truetype("arial.ttf", int(H * 0.035))
+            font_body = ImageFont.truetype("arial.ttf", int(H * 0.025))
+        except OSError:
+            font_title = ImageFont.load_default()
+            font_body = ImageFont.load_default()
+
+        # Wrap Address
+        wrapped_address = "\n".join(textwrap.wrap(address_text, width=45))
+
+        # Load Logo
+        logo_path = finders.find('tracker/logo.png')
+        logo = None
+        if logo_path:
+            try:
+                logo = Image.open(logo_path).convert("RGBA")
+                logo_size = int(H * 0.10)
+                logo.thumbnail((logo_size, logo_size))
+            except Exception: pass
+
+        # Measure Text
+        def get_text_size(text, font):
+            if hasattr(draw, "textbbox"):
+                bbox = draw.textbbox((0, 0), text, font=font)
+                return bbox[2], bbox[3]
+            else:
+                return draw.textsize(text, font=font)
+
+        w_t, h_t = get_text_size(COMPANY_NAME, font_title)
+        w_g, h_g = get_text_size(gps_text, font_body)
+        w_a, h_a = get_text_size(wrapped_address, font_body)
+
+        text_width = max(w_t, w_g, w_a)
+        text_height = h_t + h_g + h_a + 25 
+
+        # Box Dimensions
+        PADDING = 30
+        logo_w = logo.size[0] if logo else 0
+        logo_h = logo.size[1] if logo else 0
         
-        bottom = font_size * 2.5
-        draw.rectangle([(0, height - bottom), (width, height)], fill=(0, 0, 0, 160))
-        draw.text((20, height - bottom + 10), f"{lat}, {lon}", fill=(255, 255, 255), font=font)
+        box_width = logo_w + text_width + (PADDING * 3)
+        box_height = max(text_height, logo_h) + (PADDING * 2)
+
+        # Placement (Bottom Right)
+        x2 = W - PADDING
+        y2 = H - PADDING
+        x1 = x2 - box_width
+        y1 = y2 - box_height
+
+        # Draw Semi-Transparent Box
+        overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
+        overlay_draw = ImageDraw.Draw(overlay)
+        overlay_draw.rectangle([x1, y1, x2, y2], fill=(0, 0, 0, 180)) # Black 180 alpha
         
+        img = Image.alpha_composite(img, overlay)
+        draw = ImageDraw.Draw(img)
+
+        # Draw Content
+        current_x = x1 + PADDING
+        current_y = y1 + PADDING
+
+        if logo:
+            logo_y = y1 + (box_height - logo_h) // 2
+            img.paste(logo, (int(current_x), int(logo_y)), logo)
+            current_x += logo_w + PADDING
+
+        draw.text((current_x, current_y), COMPANY_NAME, fill="white", font=font_title)
+        current_y += h_t + 5
+        draw.text((current_x, current_y), gps_text, fill="#d0d0d0", font=font_body)
+        current_y += h_g + 5
+        draw.text((current_x, current_y), wrapped_address, fill="#b0b0b0", font=font_body)
+
+        # Save as JPEG (Convert back to RGB)
         buffer = BytesIO()
-        img.save(buffer, format='JPEG', quality=85)
+        img.convert("RGB").save(buffer, format='JPEG', quality=95)
         return ContentFile(buffer.getvalue())
-    except Exception:
+
+    except Exception as e:
+        print(f"DEBUG: Watermark Logic Crashed: {e}")
         image_field.seek(0)
         return image_field
 
 # ==========================================
-# 2. EXCEL/CSV HELPERS (MISSING IN YOUR CODE)
+# 4. EXCEL HELPERS
 # ==========================================
-
 def get_file_headers(file_field):
-    """Returns a list of column headers from the file."""
-    if not file_field:
-        return []
-
+    if not file_field: return []
     try:
-        # Ensure file is open and at the start
         try: file_field.open('rb')
         except: pass
         file_field.seek(0)
-        
         filename = file_field.name.lower()
-        headers = []
-
         if filename.endswith('.xlsx'):
             workbook = openpyxl.load_workbook(file_field, data_only=True)
             sheet = workbook.active
-            # Get first row only
-            headers = [str(cell.value).strip() for cell in sheet[1] if cell.value]
+            return [str(cell.value).strip() for cell in sheet[1] if cell.value]
         else:
-            decoded_file = file_field.read().decode('utf-8-sig').splitlines()
-            reader = csv.reader(decoded_file)
-            headers = next(reader, [])
-            headers = [h.strip() for h in headers if h]
-            
-        return headers
-    except Exception as e:
-        print(f"Header Read Error: {e}")
-        return []
+            decoded = file_field.read().decode('utf-8-sig').splitlines()
+            reader = csv.reader(decoded)
+            return next(reader, [])
+    except: return []
 
 def get_dropdown_options(file_field, column_name):
-    """Reads file and returns unique values from a specific column."""
     if not file_field: return []
-    
     options = set()
     try:
         try: file_field.open('rb')
         except: pass
         file_field.seek(0)
         filename = file_field.name.lower()
-        
         if filename.endswith('.xlsx'):
             workbook = openpyxl.load_workbook(file_field, data_only=True)
             sheet = workbook.active
             headers = [str(cell.value).strip() if cell.value else '' for cell in sheet[1]]
-            
-            col_index = None
-            for idx, header in enumerate(headers):
-                if header == column_name.strip():
-                    col_index = idx
-                    break
-            
-            if col_index is not None:
+            try:
+                idx = headers.index(column_name.strip())
                 for row in sheet.iter_rows(min_row=2, values_only=True):
-                    val = row[col_index]
-                    if val: options.add(str(val).strip())
-
+                    if row[idx]: options.add(str(row[idx]).strip())
+            except ValueError: pass
         else:
-            decoded_file = file_field.read().decode('utf-8-sig').splitlines()
-            reader = csv.DictReader(decoded_file)
+            decoded = file_field.read().decode('utf-8-sig').splitlines()
+            reader = csv.DictReader(decoded)
             reader.fieldnames = [name.strip() for name in reader.fieldnames]
-            
             if column_name.strip() in reader.fieldnames:
                 for row in reader:
-                    val = row.get(column_name.strip())
-                    if val: options.add(val.strip())
-
-        sorted_options = sorted(list(options))
-        return [(opt, opt) for opt in sorted_options]
-        
-    except Exception:
-        return []
+                    if row.get(column_name.strip()): options.add(row.get(column_name.strip()).strip())
+        return [(o, o) for o in sorted(list(options))]
+    except: return []

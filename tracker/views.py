@@ -1,14 +1,14 @@
+import sys
+from django.core.files.uploadedfile import InMemoryUploadedFile  # <--- THIS WAS MISSING
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib.admin.views.decorators import staff_member_required
 from django.views.decorators.cache import never_cache
 from django.contrib import messages
 from django.http import HttpResponse
-from .models import Project, Pole, StageDefinition, Evidence, ItemFieldValue, Client
-from .forms import EvidenceForm, DynamicItemForm
+from .models import Project, Pole, StageDefinition, Evidence, ItemFieldValue, Client, ProjectIssue
+from .forms import EvidenceForm, DynamicItemForm, IssueForm
 from .utils import watermark_image, get_gps_from_image
-from .models import ProjectIssue
-from .forms import IssueForm
 
 # ==========================================
 # 1. MAIN DASHBOARD
@@ -57,17 +57,14 @@ def create_project_item(request, project_id):
     if request.method == 'POST':
         form = DynamicItemForm(project, request.POST)
         if form.is_valid():
-            # A. Create with TEMP ID
             temp_id = f"TEMP-{project.poles.count() + 1}"
             pole = Pole.objects.create(project=project, identifier=temp_id)
             
-            # B. Save Answers
             for field_def in project.field_definitions.all():
                 field_name = f"custom_{field_def.id}"
                 answer = form.cleaned_data.get(field_name)
                 ItemFieldValue.objects.create(pole=pole, field_def=field_def, value=answer)
             
-            # C. HIERARCHICAL NAMING LOGIC: "City_Village #1"
             new_identifier = ""
             group_def = project.field_definitions.filter(is_grouping_key=True).first()
             
@@ -79,14 +76,11 @@ def create_project_item(request, project_id):
                     count = ItemFieldValue.objects.filter(
                         field_def=group_def, value=group_value, pole__project=project
                     ).count()
-                    # FORMAT: "Ayodhya_Bari #1"
                     new_identifier = f"{project.name}_{group_value} #{count}"
             
-            # Fallback Naming
             if not new_identifier:
                 new_identifier = f"{project.project_type.unit_name} #{project.poles.count()}"
 
-            # Ensure Unique
             base = new_identifier
             c = 1
             while project.poles.filter(identifier=new_identifier).exclude(id=pole.id).exists():
@@ -126,34 +120,55 @@ def pole_detail(request, pole_id):
 
         if form.is_valid():
             try:
+                # 1. Prepare object (do not save to DB yet)
                 evidence = form.save(commit=False)
                 evidence.pole = pole
                 if stage_id:
                     evidence.stage = stage_obj
 
-                # GPS Logic
+                # 2. Extract GPS from EXIF if needed
                 if (not lat or not lon) and raw_file:
                     try:
                         if hasattr(raw_file, 'seek'): raw_file.seek(0)
                         exif_lat, exif_lon = get_gps_from_image(raw_file)
                         if exif_lat and exif_lon:
                             lat, lon = exif_lat, exif_lon
-                            evidence.gps_lat, evidence.gps_long = lat, lon
-                    except Exception:
-                        pass 
+                    except Exception as e:
+                        print(f"DEBUG: EXIF Extraction Failed: {e}")
 
-                evidence.save() 
+                if lat and lon:
+                    evidence.gps_lat = lat
+                    evidence.gps_long = lon
 
-                # Watermark Logic
-                if lat and lon and raw_file:
+                # 3. Apply Watermark BEFORE Saving
+                if raw_file:
+                    print("DEBUG: Starting Watermark Process...")
                     try:
                         if hasattr(raw_file, 'seek'): raw_file.seek(0)
-                        branded_photo = watermark_image(raw_file, lat, lon)
-                        branded_photo.name = raw_file.name 
-                        evidence.image = branded_photo 
-                        evidence.save()
+                        
+                        # Get watermarked content (ContentFile)
+                        branded_content = watermark_image(raw_file, lat, lon)
+                        
+                        # Convert to InMemoryUploadedFile to fix Cloudinary/DB error
+                        branded_file = InMemoryUploadedFile(
+                            file=branded_content,
+                            field_name=None,
+                            name=raw_file.name,
+                            content_type='image/jpeg',
+                            size=branded_content.tell(),
+                            charset=None
+                        )
+                        
+                        # Assign the processed file
+                        evidence.image = branded_file
+                        print("DEBUG: Watermark applied to object.")
+                        
                     except Exception as e:
-                        print(f"Watermark Failed: {e}")
+                        print(f"DEBUG: Watermark FAILED: {e}")
+                        # Fallback: evidence.image is already raw_file
+
+                # 4. Final Save
+                evidence.save() 
 
                 # Auto-Complete Logic
                 required_count = StageDefinition.objects.filter(project_type=pole.project.project_type, is_required=True).count()
@@ -165,7 +180,7 @@ def pole_detail(request, pole_id):
                 messages.success(request, "Upload successful!")
                 return redirect('pole_detail', pole_id=pole.id)
             except Exception as e:
-                print(f"Save Error: {e}")
+                print(f"DEBUG: Save Error: {e}")
                 messages.error(request, f"Error saving photo: {e}")
         else:
             messages.error(request, "Upload failed.")
@@ -196,17 +211,11 @@ def admin_project_inspection(request, project_id):
         inspection_data[pole] = photos
     return render(request, 'tracker/admin_inspection.html', {'project': project, 'inspection_data': inspection_data})
 
-
-
-
 # ==========================================
 # 4. CLIENT VIEWS (HIERARCHY & MAGIC LINKS)
 # ==========================================
 
 def client_dashboard(request, client_uuid):
-    """
-    LEVEL 1: Shows all Cities (Projects) for this Client Organization
-    """
     client_org = get_object_or_404(Client, uuid=client_uuid)
     projects = client_org.projects.all().order_by('-created_at')
     
@@ -245,13 +254,13 @@ def client_city_view(request, client_uuid):
             
             history = pole.evidence.all().order_by('stage__order')
             
-            # CHECK FOR SPECIFIC ISSUE ON THIS POLE
+            # Check for open issues
             has_issue = pole.issues.filter(status='OPEN').exists()
 
             grouped_data[village_name]['poles'].append({
                 'pole': pole,
                 'history': history,
-                'has_issue': has_issue # <--- Sending this to template
+                'has_issue': has_issue
             })
             
             grouped_data[village_name]['total'] += 1
@@ -263,7 +272,6 @@ def client_city_view(request, client_uuid):
             
         grouped_data = dict(sorted(grouped_data.items()))
     else:
-        # Fallback logic
         grouped_data['All Locations'] = {'poles': [], 'done': done, 'total': total, 'percent': progress}
         for pole in poles:
             history = pole.evidence.all().order_by('stage__order')
@@ -291,13 +299,11 @@ def report_issue(request, pole_id):
             )
             messages.success(request, "Issue reported to the admin.")
     
-    # Redirect back to the client view (we need the client_uuid)
     return redirect('client_view', client_uuid=pole.project.client_uuid)
 
 @login_required
 def project_issues(request, project_id):
     project = get_object_or_404(Project, id=project_id)
-    # Get all OPEN issues for this project
     issues = ProjectIssue.objects.filter(pole__project=project, status='OPEN').order_by('-created_at')
     
     return render(request, 'tracker/project_issues.html', {
@@ -311,5 +317,4 @@ def resolve_issue(request, issue_id):
     issue.status = 'RESOLVED'
     issue.save()
     messages.success(request, "Issue marked as resolved.")
-    # Send user back to the issues list
     return redirect('project_issues', project_id=issue.pole.project.id)

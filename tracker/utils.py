@@ -88,7 +88,7 @@ def watermark_image(image_field, lat, lon):
         base_dim = min(W, H)
         
         # Configurable Ratios
-        LOGO_RATIO = 0.12    # Logo is 12% of shortest side (Smaller than before)
+        LOGO_RATIO = 0.2    # Logo is 12% of shortest side (Smaller than before)
         TITLE_RATIO = 0.05   # Title is 5% (Larger than before)
         BODY_RATIO = 0.035   # Body is 3.5% (Readable on phones)
         PADDING_RATIO = 0.02 # Padding is 2%

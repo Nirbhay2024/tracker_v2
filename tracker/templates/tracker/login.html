@@ -2,46 +2,210 @@
 {% load static %}
 
 {% block content %}
-<div class="row justify-content-center mt-5">
-    <div class="col-md-4">
+<style>
+    /* 1. Typography & Base */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+    body {
+        font-family: 'Inter', sans-serif;
+        overflow-x: hidden;
+        background-color: #ffffff;
+    }
+
+    /* Hide Navbar */
+    nav.navbar { display: none !important; }
+
+    /* 2. Layout Wrapper - Forces full viewport height */
+    .login-wrapper { 
+        height: 100vh; 
+        width: 100vw;
+        overflow: hidden; 
+    }
+
+    /* --- LEFT SIDE: BRANDING --- */
+    .brand-section {
+        background-color: #000000;
+        /* Modern Gradient Mesh Background */
+        background-image: 
+            radial-gradient(at 0% 0%, hsla(253,16%,7%,1) 0, transparent 50%), 
+            radial-gradient(at 50% 0%, hsla(225,39%,30%,1) 0, transparent 50%), 
+            radial-gradient(at 100% 0%, hsla(339,49%,30%,1) 0, transparent 50%);
+        color: white;
+        position: relative;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        /* FIXED: Responsive padding to fit all screens */
+        padding: 5vh 5vw; 
+    }
+
+    /* Texture Overlay */
+    .brand-section::after {
+        content: "";
+        position: absolute;
+        top: 0; left: 0; width: 100%; height: 100%;
+        background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+        pointer-events: none;
+    }
+
+    .brand-content {
+        position: relative;
+        z-index: 10;
+        max-width: 600px;
+        margin: 0 auto;
+    }
+
+
+
+    /* Glass Logo Box */
+    .logo-container {
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 20px;
+        padding: 20px;
+        display: inline-block;
+        margin-bottom: 2rem;
+        width: fit-content;
+    }
+
+    /* SAFE LOGO SIZING */
+    .logo-desktop { 
+        height: 100px; 
+        width: auto; 
+        max-width: 100%; 
+        object-fit: contain; 
+        display: block;
+    }
+
+    /* --- RIGHT SIDE: FORM --- */
+    .form-section {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start; 
+        background-color: #ffffff;
+        padding-left: 8vw; 
+        padding-right: 2rem;
+        height: 100%; 
+        overflow-y: auto; /* Allow scrolling if vertical height is too small */
+    }
+
+    .form-container {
+        width: 100%;
+        max-width: 400px;
+    }
+
+    /* Form Elements */
+    .form-control {
+        background-color: #f9fafb;
+        border: 1px solid #e5e7eb;
+        padding: 0.8rem 1rem;
+        border-radius: 8px;
+        font-size: 0.95rem;
+        transition: all 0.2s;
+    }
+    .form-control:focus {
+        background-color: #fff;
+        border-color: #000;
+        box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .btn-login {
+        background-color: #000;
+        color: white;
+        font-weight: 600;
+        padding: 0.8rem;
+        border-radius: 8px;
+        width: 100%;
+        transition: all 0.2s;
+    }
+    .btn-login:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+
+    .logo-mobile { 
+        height: 70px; width: auto; object-fit: contain; 
+        margin-bottom: 20px;
+    }
+
+    /* --- MOBILE RESPONSIVENESS (< 992px) --- */
+    @media (max-width: 991.98px) {
+        .login-wrapper {
+            height: auto; 
+            min-height: 100vh;
+            overflow-y: auto;
+        }
+        .form-section {
+            justify-content: center;
+            padding: 3rem 1.5rem;
+            height: auto;
+        }
+        .brand-section {
+            padding: 4rem 2rem;
+            min-height: 40vh; /* Visible on mobile */
+        }
+        .logo-mobile { display: inline-block; }
+    }
+</style>
+
+<div class="container-fluid p-0">
+    <div class="row g-0 login-wrapper">
         
-        <div class="text-center mb-4">
-            <img src="{% static 'tracker/logo.png' %}" alt="Nexsafe Logo" style="height: 80px; width: auto;" class="mb-3 rounded shadow-sm">
-            <h3 class="fw-bold text-dark">Nexsafe</h3>
-            <h3 class="fw-bold text-dark">Secure Project Access</h3>
-            <p class="text-muted">Please sign in to continue</p>
+        <div class="col-lg-6 d-none d-lg-flex brand-section">
+            <div class="brand-content">
+                
+                <div class="logo-container">
+                    <img src="{% static 'tracker/logo.png' %}" alt="Logo" class="logo-desktop">
+                </div>
+                
+                <h1 class="display-5 fw-bold mb-3">Track Operations.</h1>
+                <h1 class="display-5 fw-bold mb-3">Deliver Faster</h1>
+                <p class="fs-5 opacity-75 fw-light">
+                    Real-time project tracking, evidence collection, and validation.
+                </p>
+            </div>
         </div>
 
-        <div class="card shadow-lg border-0 rounded-4">
-            <div class="card-body p-4">
+        <div class="col-lg-6 form-section">
+            <div class="form-container">
+                
+                <div class="d-lg-none text-center">
+                    <img src="{% static 'tracker/logo.png' %}" alt="Logo" class="logo-mobile">
+                </div>
+
+                <div class="mb-4">
+                    <h3 class="fw-bold text-dark">Nexsafe</h3>
+                    <h3 class="fw-bold text-dark">Secure Project Access</h3>
+                    <p class="text-muted small">Please enter your details.</p>
+                </div>
+
                 <form method="post">
                     {% csrf_token %}
                     
                     {% if form.non_field_errors %}
-                        <div class="alert alert-danger">
-                            {{ form.non_field_errors }}
+                        <div class="alert alert-danger py-2 small rounded-3 mb-3 border-0 bg-danger-subtle text-danger">
+                            <i class="bi bi-exclamation-circle-fill me-1"></i> {{ form.non_field_errors }}
                         </div>
                     {% endif %}
 
                     <div class="mb-3">
-                        <label class="form-label fw-bold">Username</label>
-                        <input type="text" name="username" class="form-control form-control-lg bg-light" required autofocus>
+                        <label class="form-label fw-bold small text-muted" style="font-size: 0.75rem; letter-spacing: 0.5px;">USERNAME</label>
+                        <input type="text" name="username" class="form-control" required autofocus>
                     </div>
 
                     <div class="mb-4">
-                        <label class="form-label fw-bold">Password</label>
-                        <input type="password" name="password" class="form-control form-control-lg bg-light" required>
+                        <label class="form-label fw-bold small text-muted" style="font-size: 0.75rem; letter-spacing: 0.5px;">PASSWORD</label>
+                        <input type="password" name="password" class="form-control" required>
                     </div>
 
-                    <div class="d-grid">
-                        <button type="submit" class="btn btn-primary btn-lg fw-bold rounded-pill">Sign In</button>
+                    <button type="submit" class="btn btn-login">Sign In</button>
+
+                    <div class="text-center mt-4">
+                        <small class="text-muted opacity-50">&copy; {% now "Y" %} Nexsafe Systems</small>
                     </div>
                 </form>
             </div>
-        </div>
-        
-        <div class="text-center mt-4 text-muted small">
-            &copy; {% now "Y" %} Nexsafe. Authorized personnel only.
         </div>
 
     </div>

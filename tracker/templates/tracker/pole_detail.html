@@ -82,8 +82,10 @@
                         <span class="fw-bold fs-5">{{ stage.name }}</span>
                         {% if stage.id in evidence_map %}
                             <span class="badge bg-success rounded-pill">Done</span>
+                        {% elif stage.is_locked %}
+                            <span class="badge bg-secondary rounded-pill"><i class="bi bi-lock-fill"></i> Locked</span>
                         {% else %}
-                            <span class="badge bg-secondary rounded-pill text-light opacity-50">Pending</span>
+                            <span class="badge bg-warning text-dark rounded-pill">Current Step</span>
                         {% endif %}
                     </div>
 
@@ -108,6 +110,14 @@
                                    <i class="bi bi-trash"></i> Delete & Replace
                                 </a>
                             {% endwith %}
+
+                        {% elif stage.is_locked %}
+                            <div class="mb-3 text-muted opacity-25">
+                                <i class="bi bi-lock-fill display-1"></i>
+                            </div>
+                            <button disabled class="btn btn-secondary w-100 rounded-pill py-2 opacity-50">
+                                Complete Previous Step
+                            </button>
 
                         {% else %}
                             <div class="mb-3 text-muted opacity-50">
@@ -187,8 +197,11 @@
         document.getElementById('inputStageId').value = stageId;
         document.getElementById('modalStageName').innerText = stageName;
         
-        // Reset Logic
-        document.getElementById("submitBtn").disabled = false; 
+        // Reset Logic (Ensure button is clickable again when reopening)
+        var btn = document.getElementById("submitBtn");
+        btn.disabled = false; 
+        btn.innerHTML = "Confirm Upload"; 
+
         var status = document.getElementById("locationStatus");
         status.className = "d-flex align-items-center justify-content-center gap-2 p-2 rounded bg-light text-muted small";
         status.innerHTML = '<div class="spinner-border spinner-border-sm"></div> <span>Acquiring Location...</span>';
@@ -216,6 +229,14 @@
             );
         }
     }
+
+    // PREVENT DOUBLE SUBMISSIONS
+    const form = document.getElementById('uploadForm');
+    form.addEventListener('submit', function() {
+        const btn = document.getElementById('submitBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Uploading...';
+    });
 </script>
 
 <style>

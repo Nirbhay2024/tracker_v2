@@ -183,6 +183,9 @@ def create_project_item(request, project_id):
 # ==========================================
 # 3. POLE / EVIDENCE HANDLING
 # ==========================================
+
+# ... (Imports remain the same) ...
+
 @login_required
 def pole_detail(request, pole_id):
     pole = get_object_or_404(Pole, id=pole_id)
@@ -190,15 +193,49 @@ def pole_detail(request, pole_id):
     existing_evidence = Evidence.objects.filter(pole=pole)
     evidence_map = {e.stage.id: e for e in existing_evidence}
 
+    # --- 1. CALCULATE LOCK STATUS ---
+    # Logic: A stage is "locked" if the immediate previous stage is not done.
+    # We iterate through the sorted stages to determine this.
+    previous_stage_done = True # First stage is always open
+    for stage in stages:
+        # We attach a temporary attribute to the object for the template
+        stage.is_locked = not previous_stage_done
+        
+        # Check if this stage is done for the NEXT iteration
+        if stage.id in evidence_map:
+            previous_stage_done = True
+        else:
+            previous_stage_done = False
+
     if request.method == 'POST':
         stage_id = request.POST.get('stage_id')
         lat = request.POST.get('gps_lat')
         lon = request.POST.get('gps_long')
         raw_file = request.FILES.get('image')
 
+        # --- 2. SECURITY CHECK: PREVENT SKIPPING ---
+        if stage_id:
+            target_stage = get_object_or_404(StageDefinition, id=stage_id)
+            
+            # Find all stages that come BEFORE this one
+            prev_stages = StageDefinition.objects.filter(
+                project_type=pole.project.project_type,
+                order__lt=target_stage.order
+            )
+            
+            # Check if any previous stage is missing evidence
+            missing_stages = []
+            for ps in prev_stages:
+                if not Evidence.objects.filter(pole=pole, stage=ps).exists():
+                    missing_stages.append(ps.name)
+            
+            if missing_stages:
+                messages.error(request, f"⛔ Sequence Locked! You must complete: {', '.join(missing_stages)} first.")
+                return redirect('pole_detail', pole_id=pole.id)
+
+        # (Existing Deletion Logic)
         if stage_id:
             stage_obj = get_object_or_404(StageDefinition, id=stage_id)
-            # Log Deletion (Overwrite)
             if Evidence.objects.filter(pole=pole, stage=stage_obj).exists():
                 Evidence.objects.filter(pole=pole, stage=stage_obj).delete()
                 log_action(pole.project, request.user, "Re-Uploaded Evidence", pole.identifier, f"Overwrote stage: {stage_obj.name}")
@@ -238,8 +275,7 @@ def pole_detail(request, pole_id):
                         print(f"Watermark Error: {e}")
 
                 evidence.save() 
-
-                # --- LOGGING ---
+                
                 log_action(
                     pole.project, request.user, "Uploaded Evidence", pole.identifier, 
                     f"Stage: {evidence.stage.name}", lat=lat, lon=lon
@@ -260,6 +296,7 @@ def pole_detail(request, pole_id):
         form = EvidenceForm()
 
     return render(request, 'tracker/pole_detail.html', {'pole': pole, 'stages': stages, 'evidence_map': evidence_map, 'form': form})
+
 
 @login_required
 def delete_evidence(request, evidence_id):

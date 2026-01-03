@@ -1,23 +1,69 @@
 {% extends 'tracker/base.html' %}
 
 {% block content %}
-<div class="container-fluid py-4">
+<style>
+    /* UI Polish */
+    .transition-hover { transition: transform 0.2s, box-shadow 0.2s; }
+    .transition-hover:hover { transform: translateY(-4px); box-shadow: 0 10px 20px rgba(0,0,0,0.08)!important; }
     
-    <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
+    .accordion-item { overflow: hidden; border-radius: 12px !important; }
+    .accordion-button { font-weight: 600; border-radius: 12px !important; }
+    .accordion-button:not(.collapsed) { background-color: #f1f3f5; color: #212529; box-shadow: none; }
+    .accordion-button:focus { box-shadow: none; }
+    
+    .badge-subtle-success { background-color: #d1e7dd; color: #0f5132; }
+    .badge-subtle-warning { background-color: #fff3cd; color: #664d03; }
+    .badge-subtle-secondary { background-color: #e2e3e5; color: #41464b; }
+
+    .gallery-img { 
+        height: 80px; width: 80px; object-fit: cover; 
+        border-radius: 8px; transition: opacity 0.2s; 
+        cursor: pointer; border: 1px solid rgba(0,0,0,0.1);
+    }
+    .gallery-img:hover { opacity: 0.8; }
+
+    .details-box {
+        background-color: #f8f9fa;
+        border-left: 3px solid #0d6efd;
+        border-radius: 4px;
+    }
+    
+    /* Gallery Nav Buttons */
+    .gallery-nav-btn {
+        position: absolute; top: 0; bottom: 0; background: transparent; border: none;
+        color: rgba(255, 255, 255, 0.3); transition: all 0.2s; z-index: 10; width: 15%;
+    }
+    .gallery-nav-btn:hover { color: white; background: linear-gradient(to right, rgba(0,0,0,0.5), transparent); }
+    .gallery-nav-btn.end-0:hover { background: linear-gradient(to left, rgba(0,0,0,0.5), transparent); }
+</style>
+
+<div class="container-fluid py-4" style="max-width: 1400px;">
+    
+    <div class="d-flex justify-content-between align-items-end mb-5 border-bottom pb-3">
         <div>
-            <h1 class="fw-bold m-0">{{ project.name }}</h1>
-            <small class="text-muted">City Overview</small>
+            <h6 class="text-uppercase text-muted mb-1 ls-1">Project Dashboard</h6>
+            <h1 class="fw-bold m-0 display-6">{{ project.name }}</h1>
         </div>
         <div class="text-end">
-            <span class="display-6 fw-bold text-success">{{ progress }}%</span>
-            <span class="d-block small text-muted">Completed</span>
+            <div class="d-flex align-items-center gap-3">
+                <div class="text-end">
+                    <span class="d-block fw-bold fs-4 text-success">{{ progress }}%</span>
+                    <span class="small text-muted text-uppercase">Complete</span>
+                </div>
+                <div style="width: 50px; height: 50px;">
+                    <svg viewBox="0 0 36 36" class="circular-chart text-success">
+                        <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#eee" stroke-width="3.8"/>
+                        <path class="circle" stroke-dasharray="{{ progress }}, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-width="3.8" />
+                    </svg>
+                </div>
+            </div>
         </div>
     </div>
 
     {% if messages %}
         {% for message in messages %}
-            <div class="alert alert-success alert-dismissible fade show" role="alert">
-                {{ message }}
+            <div class="alert alert-success alert-dismissible fade show shadow-sm border-0" role="alert">
+                <i class="bi bi-check-circle-fill me-2"></i> {{ message }}
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
         {% endfor %}
@@ -25,30 +71,30 @@
 
     <script>const poleGalleries = {};</script>
 
-    <div class="accordion" id="villageAccordion">
+    <div class="accordion d-flex flex-column gap-3" id="villageAccordion">
         {% for village_name, data in grouped_data.items %}
-        <div class="accordion-item mb-3 shadow-sm border-0">
+        <div class="accordion-item shadow-sm border-0">
             
             <h2 class="accordion-header" id="head{{ forloop.counter }}">
-                <button class="accordion-button collapsed p-4" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ forloop.counter }}">
+                <button class="accordion-button collapsed py-4 px-4" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ forloop.counter }}">
                     <div class="d-flex w-100 justify-content-between align-items-center pe-3">
-                        <div class="text-start">
-                            <h4 class="mb-0 fw-bold">{{ village_name }}</h4>
-                            <small class="text-muted">{{ data.total }} Items</small>
+                        <div>
+                            <h5 class="mb-0 fw-bold text-dark">{{ village_name }}</h5>
+                            <small class="text-muted">{{ data.total }} Poles</small>
                         </div>
-                        <div style="width: 150px;">
-                            <small class="text-muted d-block text-end mb-1">{{ data.percent }}% Done</small>
-                            <div class="progress" style="height: 8px;">
-                                <div class="progress-bar bg-success" style="width: {{ data.percent }}%"></div>
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="progress bg-secondary-subtle" style="width: 100px; height: 6px; border-radius: 10px;">
+                                <div class="progress-bar bg-success" style="width: {{ data.percent }}%; border-radius: 10px;"></div>
                             </div>
+                            <span class="fw-bold small text-success">{{ data.percent }}%</span>
                         </div>
                     </div>
                 </button>
             </h2>
 
             <div id="collapse{{ forloop.counter }}" class="accordion-collapse collapse" data-bs-parent="#villageAccordion">
-                <div class="accordion-body bg-light">
-                    <div class="row g-3">
+                <div class="accordion-body bg-light bg-opacity-50 p-4">
+                    <div class="row g-4">
                         {% for item in data.poles %}
                         
                         <script>
@@ -59,69 +105,65 @@
                             ];
                         </script>
 
-                        <div class="col-md-6 col-xl-4">
-                            <div class="card h-100 shadow-sm {% if item.has_issue %}border-danger border-2{% else %}border{% endif %}">
+                        <div class="col-md-6 col-xxl-4">
+                            <div class="card h-100 border-0 shadow-sm transition-hover">
                                 
-                                <div class="card-header d-flex justify-content-between align-items-center bg-white py-2">
-                                    <div>
-                                        <strong class="{% if item.has_issue %}text-danger{% endif %}">{{ item.pole.identifier }}</strong>
-                                        <div class="small text-muted">{{ item.pole.custom_id }}</div>
-                                    </div>
-                                    
-                                    <div class="d-flex gap-2 align-items-center">
+                                <div class="card-body p-4">
+                                    <div class="d-flex justify-content-between align-items-start mb-3">
+                                        <div>
+                                            <h5 class="fw-bold text-dark mb-0">Pole #{{ forloop.counter }}</h5>
+                                            <small class="text-muted font-monospace user-select-all">{{ item.pole.custom_id }}</small>
+                                        </div>
                                         
-                                        <button class="btn btn-outline-primary btn-sm border-0" 
-                                                title="View Details" 
-                                                onclick="openInfoModal('{{ item.pole.id }}', '{{ item.pole.identifier }}')">
-                                            <i class="bi bi-info-circle-fill fs-5"></i>
-                                        </button>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <button class="btn btn-sm rounded-pill px-3 fw-bold {% if item.has_issue %}btn-danger{% else %}btn-outline-light text-muted{% endif %}" 
+                                                    style="{% if not item.has_issue %}border-color: #dee2e6;{% endif %}"
+                                                    title="Report Issue" 
+                                                    onclick="openFlagModal('{{ item.pole.id }}', '{{ item.pole.custom_id }}')">
+                                                {% if item.has_issue %}
+                                                    <i class="bi bi-flag-fill me-1"></i> Issue
+                                                {% else %}
+                                                    <i class="bi bi-flag"></i>
+                                                {% endif %}
+                                            </button>
 
-                                        <button class="btn btn-outline-danger btn-sm border-0" 
-                                                title="Report Issue" 
-                                                onclick="openFlagModal('{{ item.pole.id }}', '{{ item.pole.identifier }}')">
-                                            {% if item.has_issue %}
-                                                <i class="bi bi-flag-fill fs-5"></i> {% else %}
-                                                <i class="bi bi-flag fs-5"></i> {% endif %}
-                                        </button>
-
-                                        {% if item.pole.is_completed %}
-                                            <span class="badge bg-success">Done</span>
-                                        {% else %}
-                                            <span class="badge bg-warning text-dark">Active</span>
-                                        {% endif %}
+                                            {% if item.pole.is_completed %}
+                                                <span class="badge badge-subtle-success rounded-pill px-3 py-2">
+                                                    <i class="bi bi-check-circle-fill me-1"></i> Done
+                                                </span>
+                                            {% else %}
+                                                <span class="badge badge-subtle-warning rounded-pill px-3 py-2">
+                                                    <i class="bi bi-clock-fill me-1"></i> Active
+                                                </span>
+                                            {% endif %}
+                                        </div>
                                     </div>
-                                </div>
 
-                                <div id="info-content-{{ item.pole.id }}" class="d-none">
-                                    <table class="table table-sm table-borderless mb-0">
-                                        <tbody>
-                                            <tr>
-                                                <td class="text-muted w-50">Tracking ID:</td>
-                                                <td class="fw-bold font-monospace">{{ item.pole.custom_id }}</td>
-                                            </tr>
-                                            {% for val in item.custom_data %}
-                                            <tr>
-                                                <td class="text-muted">{{ val.field_def.label }}:</td>
-                                                <td class="fw-bold">{{ val.value }}</td>
-                                            </tr>
-                                            {% endfor %}
-                                        </tbody>
-                                    </table>
-                                </div>
-
-                                <div class="card-body">
-                                    <div class="d-flex gap-2 overflow-auto pb-2">
-                                        {% for photo in item.history %}
-                                        <img src="{{ photo.image.url }}" 
-                                             class="rounded cursor-pointer hover-zoom shadow-sm" 
-                                             style="height: 90px; width: 90px; object-fit: cover;"
-                                             onclick="openGallery('{{ item.pole.id }}', {{ forloop.counter0 }})">
-                                        {% empty %}
-                                        <div class="text-center w-100 py-3 text-muted bg-light rounded small">
-                                            No photos uploaded yet.
+                                    {% if item.custom_data %}
+                                    <div class="details-box p-3 mb-4 shadow-sm">
+                                        {% for val in item.custom_data %}
+                                        <div class="d-flex justify-content-between mb-1 small">
+                                            <span class="text-secondary">{{ val.field_def.label }}:</span>
+                                            <span class="fw-semibold text-dark text-end text-break ps-3">{{ val.value }}</span>
                                         </div>
                                         {% endfor %}
                                     </div>
+                                    {% endif %}
+
+                                    <h6 class="text-muted text-uppercase small fw-bold mb-2" style="font-size: 0.7rem; letter-spacing: 1px;">Evidence Photos</h6>
+                                    <div class="d-flex gap-2 overflow-auto pb-1">
+                                        {% for photo in item.history %}
+                                        <img src="{{ photo.image.url }}" 
+                                             class="gallery-img shadow-sm" 
+                                             onclick="openGallery('{{ item.pole.id }}', {{ forloop.counter0 }})">
+                                        {% empty %}
+                                        <div class="w-100 py-4 text-center bg-light rounded border border-dashed">
+                                            <i class="bi bi-camera text-muted fs-4"></i>
+                                            <div class="small text-muted mt-1">No photos yet</div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+
                                 </div>
                             </div>
                         </div>
@@ -135,46 +177,30 @@
     </div>
 </div>
 
-<div class="modal fade" id="infoModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow">
-            <div class="modal-header bg-light">
-                <h5 class="modal-title fw-bold" id="infoModalTitle"></h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body" id="infoModalBody">
-                </div>
-            <div class="modal-footer bg-light py-2">
-                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
-            </div>
-        </div>
-    </div>
-</div>
-
 <div class="modal fade" id="galleryModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
-        <div class="modal-content bg-dark border-0">
-            <div class="modal-header border-0 py-2">
-                <div class="text-white small">
-                    <span id="galleryCounter">1/1</span>
+        <div class="modal-content bg-black border-0">
+            <div class="modal-header border-0 py-2 bg-dark">
+                <div class="text-white small opacity-75">
+                    <span id="galleryCounter"></span>
                 </div>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body p-0 d-flex align-items-center justify-content-center position-relative" style="min-height: 400px; background-color: #000;">
+            <div class="modal-body p-0 d-flex align-items-center justify-content-center position-relative" style="min-height: 500px; background-color: #000;">
                 
                 <button class="gallery-nav-btn start-0 ps-3" onclick="navigateGallery(-1)">
-                    <i class="bi bi-chevron-left display-6"></i>
+                    <i class="bi bi-chevron-left display-4"></i>
                 </button>
 
-                <img id="galleryImage" src="" class="img-fluid" style="max-height: 80vh;">
+                <img id="galleryImage" src="" class="img-fluid" style="max-height: 85vh;">
 
                 <button class="gallery-nav-btn end-0 pe-3" onclick="navigateGallery(1)">
-                    <i class="bi bi-chevron-right display-6"></i>
+                    <i class="bi bi-chevron-right display-4"></i>
                 </button>
 
             </div>
-            <div class="modal-footer border-0 bg-dark justify-content-center pt-0 pb-3">
-                <span id="galleryCaption" class="badge bg-secondary fs-6 px-3 py-2 rounded-pill"></span>
+            <div class="modal-footer border-0 bg-dark justify-content-center pt-3 pb-4">
+                <span id="galleryCaption" class="badge bg-white text-dark fs-6 px-4 py-2 rounded-pill shadow-sm"></span>
             </div>
         </div>
     </div>
@@ -182,22 +208,25 @@
 
 <div class="modal fade" id="flagModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header bg-danger text-white">
-                <h5 class="modal-title">🚩 Report Issue</h5>
+        <div class="modal-content border-0 rounded-4 shadow">
+            <div class="modal-header bg-danger text-white border-0">
+                <h5 class="modal-title fw-bold"><i class="bi bi-exclamation-triangle-fill me-2"></i> Report Issue</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <form id="flagForm" method="post" action="">
                 {% csrf_token %}
-                <div class="modal-body">
-                    <p>Report issue for: <strong id="flagPoleName"></strong></p>
-                    <div class="mb-3">
-                        <textarea name="message" class="form-control" rows="3" placeholder="Describe the issue (e.g. Blurry photo, Wrong angle)..." required></textarea>
+                <div class="modal-body p-4">
+                    <div class="mb-3 text-muted small">
+                        Reporting issue for Tracking ID: <strong class="text-dark font-monospace" id="flagPoleName"></strong>
+                    </div>
+                    <div>
+                        <label class="form-label fw-bold">Description</label>
+                        <textarea name="message" class="form-control bg-light" rows="4" placeholder="e.g. Photo is blurry, Wrong angle, Pole damaged..." required></textarea>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-danger">Submit Report</button>
+                <div class="modal-footer border-0 p-3 bg-light rounded-bottom-4">
+                    <button type="button" class="btn btn-link text-secondary text-decoration-none" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger px-4 rounded-pill fw-bold">Submit Report</button>
                 </div>
             </form>
         </div>
@@ -205,23 +234,14 @@
 </div>
 
 <script>
-    // --- INFO MODAL LOGIC ---
-    function openInfoModal(poleId, title) {
-        document.getElementById('infoModalTitle').innerText = title;
-        // Copy content from hidden div to modal
-        const content = document.getElementById('info-content-' + poleId).innerHTML;
-        document.getElementById('infoModalBody').innerHTML = content;
-        new bootstrap.Modal(document.getElementById('infoModal')).show();
-    }
-
-    // --- FLAG MODAL LOGIC ---
+    // Flag Modal
     function openFlagModal(poleId, poleName) {
         document.getElementById('flagPoleName').innerText = poleName;
         document.getElementById('flagForm').action = "/issue/report/" + poleId + "/";
         new bootstrap.Modal(document.getElementById('flagModal')).show();
     }
 
-    // --- GALLERY LOGIC ---
+    // Gallery Logic
     let currentPoleId = null;
     let currentIndex = 0;
 
@@ -235,27 +255,21 @@
     function navigateGallery(direction) {
         const images = poleGalleries[currentPoleId];
         if (!images) return;
-
         currentIndex += direction;
-        
-        // Loop around
         if (currentIndex < 0) currentIndex = images.length - 1;
         if (currentIndex >= images.length) currentIndex = 0;
-
         updateGalleryUI();
     }
 
     function updateGalleryUI() {
         const images = poleGalleries[currentPoleId];
         if (!images || images.length === 0) return;
-
         const imgData = images[currentIndex];
         document.getElementById('galleryImage').src = imgData.url;
         document.getElementById('galleryCaption').innerText = imgData.caption;
-        document.getElementById('galleryCounter').innerText = `${currentIndex + 1} / ${images.length}`;
+        document.getElementById('galleryCounter').innerText = `${currentIndex + 1} of ${images.length}`;
     }
 
-    // Keyboard Navigation
     document.addEventListener('keydown', function(event) {
         const modal = document.getElementById('galleryModal');
         if (modal.classList.contains('show')) {
@@ -264,31 +278,4 @@
         }
     });
 </script>
-
-<style>
-    /* Styling for Gallery Buttons */
-    .gallery-nav-btn {
-        position: absolute;
-        top: 0;
-        bottom: 0;
-        background: transparent;
-        border: none;
-        color: rgba(255, 255, 255, 0.5);
-        transition: color 0.2s, background 0.2s;
-        z-index: 10;
-        width: 15%; /* Clickable area */
-    }
-    .gallery-nav-btn:hover {
-        color: white;
-        background: linear-gradient(to right, rgba(0,0,0,0.5), transparent);
-    }
-    .gallery-nav-btn.end-0:hover {
-        background: linear-gradient(to left, rgba(0,0,0,0.5), transparent);
-    }
-    .hover-zoom:hover {
-        transform: scale(1.05);
-        transition: transform 0.2s;
-        border: 2px solid #0d6efd;
-    }
-</style>
 {% endblock %}

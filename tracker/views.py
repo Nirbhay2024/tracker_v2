@@ -1,5 +1,6 @@
 import sys
 import csv
+import logging
 from django.core.files.uploadedfile import InMemoryUploadedFile
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
@@ -7,21 +8,43 @@ from django.contrib.admin.views.decorators import staff_member_required
 from django.views.decorators.cache import never_cache
 from django.contrib import messages
 from django.http import HttpResponse
+from django.core.exceptions import PermissionDenied
 from django.db.models import Q
 from django.utils import timezone
 from .models import Project, Pole, StageDefinition, Evidence, ItemFieldValue, Client, ProjectIssue, ProjectLog
 from .forms import EvidenceForm, DynamicItemForm, IssueForm
 from .utils import watermark_image, get_gps_from_image
 
+# Configure standard logger
+logger = logging.getLogger(__name__)
+
 # ==========================================
-# 0. LOGGING HELPER
+# 0. SECURITY & LOGGING HELPERS
 # ==========================================
+def check_project_access(user, project):
+    """
+    SECURITY: Ensures the user has explicit permission to access this project.
+    - Superusers/Staff: Access All.
+    - Contractors: Must be assigned to the project.
+    """
+    if user.is_superuser or user.is_staff:
+        return True
+    
+    # Check if the user is in the assigned contractors list
+    if project.contractors.filter(id=user.id).exists():
+        return True
+        
+    # Log the unauthorized attempt for security auditing
+    logger.warning(f"SECURITY ALERT: User {user.username} (ID: {user.id}) tried to access Project {project.id} without permission.")
+    raise PermissionDenied("You are not authorized to access this project.")
+
 def log_action(project, user, action, target, details="", lat=None, lon=None):
     """Helper to record an audit log entry."""
     try:
+        user_obj = user if (user and user.is_authenticated) else None
         ProjectLog.objects.create(
             project=project,
-            user=user if user.is_authenticated else None,
+            user=user_obj,
             action=action,
             target=target,
             details=details,
@@ -29,7 +52,8 @@ def log_action(project, user, action, target, details="", lat=None, lon=None):
             gps_long=lon
         )
     except Exception as e:
-        print(f"Logging Failed: {e}")
+        # Use proper logging instead of print
+        logger.error(f"AUDIT LOG FAILURE: Could not save log entry. Error: {e}", exc_info=True)
 
 # ==========================================
 # 1. MAIN DASHBOARD
@@ -78,24 +102,23 @@ def dashboard(request):
 @login_required
 def project_detail(request, project_id):
     project = get_object_or_404(Project, id=project_id)
+    check_project_access(request.user, project)  # <--- SECURITY CHECK
+    
     poles = sorted(project.poles.all(), key=lambda p: (not p.has_open_issue, p.id))
     return render(request, 'tracker/project_detail.html', {'project': project, 'poles': poles})
 
 @login_required
 def project_logs(request, project_id):
     project = get_object_or_404(Project, id=project_id)
-    # Security: Only admins or assigned contractors can view logs
-    if not (request.user.is_superuser or request.user.is_staff or project.contractors.filter(id=request.user.id).exists()):
-        return HttpResponse("Unauthorized", status=401)
-        
+    check_project_access(request.user, project)  # <--- SECURITY CHECK
+    
     logs = project.logs.all()
     return render(request, 'tracker/project_logs.html', {'project': project, 'logs': logs})
 
 @login_required
 def export_project_logs(request, project_id):
     project = get_object_or_404(Project, id=project_id)
-    if not (request.user.is_superuser or request.user.is_staff or project.contractors.filter(id=request.user.id).exists()):
-        return HttpResponse("Unauthorized", status=401)
+    check_project_access(request.user, project)  # <--- SECURITY CHECK
 
     response = HttpResponse(content_type='text/csv')
     filename = f"Project_Logs_{project.name}_{timezone.now().strftime('%Y%m%d')}.csv"
@@ -120,7 +143,8 @@ def export_project_logs(request, project_id):
 @login_required
 def mark_project_completed(request, project_id):
     if not request.user.is_superuser:
-        return HttpResponse("Unauthorized", status=401)
+        raise PermissionDenied("Only admins can mark projects as completed.")
+        
     project = get_object_or_404(Project, id=project_id)
     project.status = 'COMPLETED'
     project.save()
@@ -132,6 +156,7 @@ def mark_project_completed(request, project_id):
 @login_required
 def create_project_item(request, project_id):
     project = get_object_or_404(Project, id=project_id)
+    check_project_access(request.user, project)  # <--- SECURITY CHECK
     
     if request.method == 'POST':
         form = DynamicItemForm(project, request.POST)
@@ -184,24 +209,19 @@ def create_project_item(request, project_id):
 # 3. POLE / EVIDENCE HANDLING
 # ==========================================
 
-# ... (Imports remain the same) ...
-
 @login_required
 def pole_detail(request, pole_id):
     pole = get_object_or_404(Pole, id=pole_id)
+    check_project_access(request.user, pole.project)  # <--- SECURITY CHECK
+    
     stages = pole.project.project_type.stages.all().order_by('order')
     existing_evidence = Evidence.objects.filter(pole=pole)
     evidence_map = {e.stage.id: e for e in existing_evidence}
 
     # --- 1. CALCULATE LOCK STATUS ---
-    # Logic: A stage is "locked" if the immediate previous stage is not done.
-    # We iterate through the sorted stages to determine this.
-    previous_stage_done = True # First stage is always open
+    previous_stage_done = True 
     for stage in stages:
-        # We attach a temporary attribute to the object for the template
         stage.is_locked = not previous_stage_done
-        
-        # Check if this stage is done for the NEXT iteration
         if stage.id in evidence_map:
             previous_stage_done = True
         else:
@@ -223,7 +243,6 @@ def pole_detail(request, pole_id):
                 order__lt=target_stage.order
             )
             
-            # Check if any previous stage is missing evidence
             missing_stages = []
             for ps in prev_stages:
                 if not Evidence.objects.filter(pole=pole, stage=ps).exists():
@@ -249,6 +268,7 @@ def pole_detail(request, pole_id):
                 if stage_id:
                     evidence.stage = stage_obj
 
+                # EXIF Fallback
                 if (not lat or not lon) and raw_file:
                     try:
                         if hasattr(raw_file, 'seek'): raw_file.seek(0)
@@ -256,12 +276,13 @@ def pole_detail(request, pole_id):
                         if exif_lat and exif_lon:
                             lat, lon = exif_lat, exif_lon
                     except Exception as e:
-                        print(f"DEBUG: EXIF Error: {e}")
+                        logger.warning(f"EXIF Extraction Failed: {e}")
 
                 if lat and lon:
                     evidence.gps_lat = lat
                     evidence.gps_long = lon
 
+                # Watermarking
                 if raw_file:
                     try:
                         if hasattr(raw_file, 'seek'): raw_file.seek(0)
@@ -272,7 +293,7 @@ def pole_detail(request, pole_id):
                         )
                         evidence.image = branded_file
                     except Exception as e:
-                        print(f"Watermark Error: {e}")
+                        logger.error(f"Watermarking Failed: {e}")
 
                 evidence.save() 
                 
@@ -289,6 +310,7 @@ def pole_detail(request, pole_id):
                 messages.success(request, "Upload successful!")
                 return redirect('pole_detail', pole_id=pole.id)
             except Exception as e:
+                logger.error(f"Upload Error: {e}")
                 messages.error(request, f"Error: {e}")
         else:
             messages.error(request, "Upload failed.")
@@ -301,6 +323,8 @@ def pole_detail(request, pole_id):
 @login_required
 def delete_evidence(request, evidence_id):
     evidence = get_object_or_404(Evidence, id=evidence_id)
+    check_project_access(request.user, evidence.pole.project)  # <--- SECURITY CHECK
+    
     pole = evidence.pole
     stage_name = evidence.stage.name
     
@@ -319,6 +343,7 @@ def delete_evidence(request, evidence_id):
 
 @staff_member_required
 def admin_project_inspection(request, project_id):
+    # Already protected by @staff_member_required
     project = get_object_or_404(Project, id=project_id)
     poles = project.poles.all()
     inspection_data = {}
@@ -348,10 +373,13 @@ def client_dashboard(request, client_uuid):
 
 def client_city_view(request, client_uuid):
     project = get_object_or_404(Project, client_uuid=client_uuid)
+    # NOTE: We will secure this with a PIN in the next step
+    
     poles = project.poles.all()
     total = poles.count()
     done = poles.filter(is_completed=True).count()
     progress = int((done/total)*100) if total > 0 else 0
+    
     group_def = project.field_definitions.filter(is_grouping_key=True).first()
     grouped_data = {}
     
@@ -413,16 +441,19 @@ def report_issue(request, pole_id):
 @login_required
 def project_issues(request, project_id):
     project = get_object_or_404(Project, id=project_id)
+    check_project_access(request.user, project)  # <--- SECURITY CHECK
+    
     issues = ProjectIssue.objects.filter(pole__project=project, status='OPEN').order_by('-created_at')
     return render(request, 'tracker/project_issues.html', {'project': project, 'issues': issues})
 
 @login_required
 def resolve_issue(request, issue_id):
     issue = get_object_or_404(ProjectIssue, id=issue_id)
+    check_project_access(request.user, issue.pole.project)  # <--- SECURITY CHECK
+    
     issue.status = 'RESOLVED'
     issue.save()
     
-    # --- LOGGING ---
     log_action(issue.pole.project, request.user, "Resolved Issue", issue.pole.identifier, f"Resolved report from {issue.reported_by}")
     
     messages.success(request, "Issue marked as resolved.")

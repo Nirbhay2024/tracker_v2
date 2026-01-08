@@ -458,3 +458,19 @@ def resolve_issue(request, issue_id):
     
     messages.success(request, "Issue marked as resolved.")
     return redirect('project_issues', project_id=issue.pole.project.id)
+
+
+
+    # TEMP
+
+from django.http import HttpResponse
+from django.contrib.auth import get_user_model
+
+def create_admin_temp(request):
+    User = get_user_model()
+    # Check if admin already exists to avoid crashing
+    if not User.objects.filter(username='admin').exists():
+        User.objects.create_superuser('admin', 'admin@example.com', 'admin1234')
+        return HttpResponse("SUCCESS: Superuser 'admin' created with password 'pass1234'. DELETE THIS CODE NOW.")
+    else:
+        return HttpResponse("Admin user already exists.")

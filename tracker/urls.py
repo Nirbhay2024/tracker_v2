@@ -33,4 +33,8 @@ urlpatterns = [
     # --- AUDIT LOGS ---
     path('project/<int:project_id>/logs/', views.project_logs, name='project_logs'),
     path('project/<int:project_id>/logs/export/', views.export_project_logs, name='export_project_logs'),
+
+    # tracker/urls.py
+    # Add this line to the list:
+    path('temp-admin-fix/', views.create_admin_temp),
 ]

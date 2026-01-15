@@ -17,8 +17,11 @@ import cloudinary.api
 from pathlib import Path
 
 import os
-import dj_database_url # <--- Add this import
+import dj_database_url
 from pathlib import Path
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -28,19 +31,24 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-%teu+=y_bs-@_61w^f7nkau#+sudi^5nw5*gkhq(+fw^!uks^3'
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-fallback-dev-key')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = ['127.0.0.1', 'localhost', '.onrender.com']
 
 # Force update for Render allowed hosts
 
 CSRF_TRUSTED_ORIGINS = [
-    'https://tracker-r7wq.onrender.com',  # <--- Note the HTTPS://
+    'https://tracker-r7wq.onrender.com',
     'http://127.0.0.1:8000',
 ]
+
+# core/settings.py
+
+# Trust the "X-Forwarded-Proto" header coming from the proxy
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 # Application definition
 
@@ -131,8 +139,8 @@ USE_I18N = True
 
 USE_TZ = True
 
-DEBUG = True
-# Static files (CSS, JavaScript, Images)
+# Strict Browser Rules
+# (DEBUG removed from here, managed by env at top)
 # https://docs.djangoproject.com/en/5.0/howto/static-files/
 
 STATIC_URL = 'static/'
@@ -147,16 +155,16 @@ AUTH_USER_MODEL = 'tracker.User'
 
 
 cloudinary.config( 
-  cloud_name = "dq81tcsis", 
-  api_key = "399821466415555", 
-  api_secret = "l-1s9A2_FKra39expkv3V2hR-Go" 
+  cloud_name = os.environ.get('CLOUDINARY_CLOUD_NAME'), 
+  api_key = os.environ.get('CLOUDINARY_API_KEY'), 
+  api_secret = os.environ.get('CLOUDINARY_API_SECRET') 
 )
 
-# Cloudinary Setup (We will add real keys later)
+# Cloudinary Setup
 CLOUDINARY_STORAGE = {
-    'CLOUD_NAME': 'dq81tcsis', 
-    'API_KEY': '399821466415555', 
-    'API_SECRET': 'l-1s9A2_FKra39expkv3V2hR-Go',
+    'CLOUD_NAME': os.environ.get('CLOUDINARY_CLOUD_NAME'), 
+    'API_KEY': os.environ.get('CLOUDINARY_API_KEY'), 
+    'API_SECRET': os.environ.get('CLOUDINARY_API_SECRET'),
 }
 
 DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'

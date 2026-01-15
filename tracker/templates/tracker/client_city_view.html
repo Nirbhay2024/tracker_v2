@@ -100,7 +100,7 @@
                         <script>
                             poleGalleries['{{ item.pole.id }}'] = [
                                 {% for photo in item.history %}
-                                    { url: "{{ photo.image.url }}", caption: "{{ photo.stage.name }}" },
+                                    { url: "{{ photo.image.url|escapejs }}", caption: "{{ photo.stage.name|escapejs }}" },
                                 {% endfor %}
                             ];
                         </script>

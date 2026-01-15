@@ -8,6 +8,42 @@ from django.core.files.base import ContentFile
 from django.contrib.staticfiles import finders
 from geopy.geocoders import Nominatim
 import datetime
+import functools
+from django.core.cache import cache
+from django.http import HttpResponseForbidden
+
+# ==========================================
+# 5. SECURITY UTILS (NEW)
+# ==========================================
+def rate_limit(limit=10, period=60):
+    """
+    Simple IP-based rate limiter decorator.
+    limit: Max requests allowed.
+    period: Time window in seconds.
+    """
+    def decorator(view_func):
+        @functools.wraps(view_func)
+        def _wrapped_view(request, *args, **kwargs):
+            ip = request.META.get('REMOTE_ADDR', 'unknown')
+            # Create a unique cache key based on view name and IP
+            key = f"ratelimit:{view_func.__name__}:{ip}"
+            
+            # Get current count
+            count = cache.get(key, 0)
+            
+            if count >= limit:
+                return HttpResponseForbidden(f"Too many requests. Please try again in {period} seconds.")
+            
+            # Increment and set/update cache
+            if count == 0:
+                cache.set(key, 1, period)
+            else:
+                cache.incr(key)
+                
+            return view_func(request, *args, **kwargs)
+        return _wrapped_view
+    return decorator
+
 
 # ==========================================
 # 1. ADDRESS LOOKUP

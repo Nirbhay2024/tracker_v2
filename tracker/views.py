@@ -13,7 +13,7 @@ from django.db.models import Q
 from django.utils import timezone
 from .models import Project, Pole, StageDefinition, Evidence, ItemFieldValue, Client, ProjectIssue, ProjectLog
 from .forms import EvidenceForm, DynamicItemForm, IssueForm
-from .utils import watermark_image, get_gps_from_image
+from .utils import watermark_image, get_gps_from_image, rate_limit
 
 # Configure standard logger
 logger = logging.getLogger(__name__)
@@ -78,6 +78,11 @@ def dashboard(request):
     completed_projects = projects_query.filter(status='COMPLETED')
 
     search_query = request.GET.get('q')
+    
+    # [FIX] SECURITY: Input Sanitization
+    if search_query:
+        # Limit length to prevent DoS via massive regex
+        search_query = search_query[:100].strip()
     search_results = None
     
     if search_query:
@@ -228,9 +233,19 @@ def pole_detail(request, pole_id):
             previous_stage_done = False
 
     if request.method == 'POST':
-        stage_id = request.POST.get('stage_id')
+        # [FIX] SECURITY: Validate inputs immediately
+        try:
+            stage_id_raw = request.POST.get('stage_id')
+            stage_id = int(stage_id_raw) if stage_id_raw else None
+        except ValueError:
+            messages.error(request, "Invalid Stage ID.")
+            return redirect('pole_detail', pole_id=pole.id)
+            
         lat = request.POST.get('gps_lat')
         lon = request.POST.get('gps_long')
+        # Simple coordinate validation
+        if lat and len(lat) > 20: lat = lat[:20]
+        if lon and len(lon) > 20: lon = lon[:20]
         raw_file = request.FILES.get('image')
 
         # --- 2. SECURITY CHECK: PREVENT SKIPPING ---
@@ -355,6 +370,7 @@ def admin_project_inspection(request, project_id):
 # ==========================================
 # 4. CLIENT / ISSUE VIEWS
 # ==========================================
+@rate_limit(limit=10, period=60)
 def client_dashboard(request, client_uuid):
     client_org = get_object_or_404(Client, uuid=client_uuid)
     projects = client_org.projects.all().order_by('-created_at')
@@ -371,6 +387,7 @@ def client_dashboard(request, client_uuid):
         'overall_progress': overall_progress
     })
 
+@rate_limit(limit=60, period=60)
 def client_city_view(request, client_uuid):
     project = get_object_or_404(Project, client_uuid=client_uuid)
     # NOTE: We will secure this with a PIN in the next step
@@ -422,8 +439,15 @@ def client_city_view(request, client_uuid):
         'progress': progress
     })
 
+@rate_limit(limit=5, period=300) # Strict limit: 5 reports per 5 mins
 def report_issue(request, pole_id):
     pole = get_object_or_404(Pole, id=pole_id)
+    
+    # [FIX] SECURITY: Ensure we don't accept reports on archived projects
+    if pole.project.status != 'ACTIVE':
+         messages.error(request, "This project is closed. Issues cannot be reported.")
+         return redirect('client_view', client_uuid=pole.project.client_uuid)
+
     if request.method == 'POST':
         form = IssueForm(request.POST)
         if form.is_valid():
@@ -461,16 +485,4 @@ def resolve_issue(request, issue_id):
 
 
 
-    # TEMP
-
-from django.http import HttpResponse
-from django.contrib.auth import get_user_model
-
-def create_admin_temp(request):
-    User = get_user_model()
-    # Check if admin already exists to avoid crashing
-    if not User.objects.filter(username='admin').exists():
-        User.objects.create_superuser('admin', 'admin@example.com', 'admin1234')
-        return HttpResponse("SUCCESS: Superuser 'admin' created with password 'pass1234'. DELETE THIS CODE NOW.")
-    else:
-        return HttpResponse("Admin user already exists.")
+    # [FIX] SECURITY: REMOVED create_admin_temp COMPLETELY

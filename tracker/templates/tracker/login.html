@@ -2,212 +2,329 @@
 {% load static %}
 
 {% block content %}
+<!-- Version: Funky Light Glass 2.0 -->
 <style>
-    /* 1. Typography & Base */
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+    /* --- FONTS & RESET --- */
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
+
     body {
-        font-family: 'Inter', sans-serif;
-        overflow-x: hidden;
-        background-color: #ffffff;
+        margin: 0;
+        padding: 0;
+        font-family: 'Outfit', sans-serif;
+        background-color: #f8fafc;
+        /* Very light slate */
+        overflow: hidden;
+        height: 100vh;
+        width: 100vw;
+        position: relative;
     }
 
     /* Hide Navbar */
-    nav.navbar { display: none !important; }
-
-    /* 2. Layout Wrapper - Forces full viewport height */
-    .login-wrapper { 
-        height: 100vh; 
-        width: 100vw;
-        overflow: hidden; 
+    nav.navbar {
+        display: none !important;
     }
 
-    /* --- LEFT SIDE: BRANDING --- */
-    .brand-section {
-        background-color: #000000;
-        /* Modern Gradient Mesh Background */
-        background-image: 
-            radial-gradient(at 0% 0%, hsla(253,16%,7%,1) 0, transparent 50%), 
-            radial-gradient(at 50% 0%, hsla(225,39%,30%,1) 0, transparent 50%), 
-            radial-gradient(at 100% 0%, hsla(339,49%,30%,1) 0, transparent 50%);
+    /* --- PERFORMANCE-OPTIMIZED ANIMATIONS --- */
+    /* Using 'transform' and 'opacity' only = 60fps on GPU */
+
+    .background-container {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        z-index: -1;
+        background: #f8fafc;
+    }
+
+    /* Moving Blobs */
+    .blob {
+        position: absolute;
+        border-radius: 50%;
+        filter: blur(80px);
+        /* The "Funky" Softness */
+        opacity: 0.6;
+        animation: floatBlob 20s infinite alternate ease-in-out;
+    }
+
+    .blob-1 {
+        top: -10%;
+        left: -10%;
+        width: 50vw;
+        height: 50vw;
+        background: #34d399;
+        /* Emerald/Green */
+        animation-duration: 25s;
+    }
+
+    .blob-2 {
+        bottom: -10%;
+        right: -10%;
+        width: 40vw;
+        height: 40vw;
+        background: #3b82f6;
+        /* Blue */
+        animation-duration: 22s;
+        animation-delay: -5s;
+    }
+
+    .blob-3 {
+        top: 40%;
+        left: 40%;
+        width: 30vw;
+        height: 30vw;
+        background: #6366f1;
+        /* Indigo */
+        animation-duration: 28s;
+        animation-delay: -10s;
+        opacity: 0.4;
+    }
+
+    @keyframes floatBlob {
+        0% {
+            transform: translate(0, 0) scale(1) rotate(0deg);
+        }
+
+        33% {
+            transform: translate(50px, -50px) scale(1.1) rotate(20deg);
+        }
+
+        66% {
+            transform: translate(-30px, 20px) scale(0.9) rotate(-10deg);
+        }
+
+        100% {
+            transform: translate(20px, 40px) scale(1.05) rotate(5deg);
+        }
+    }
+
+    /* --- CENTER CONTAINER --- */
+    .login-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        width: 100%;
+        padding: 1rem;
+    }
+
+    /* --- ENTRANCE ANIMATIONS --- */
+    @keyframes slideUpFade {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* --- GLASS CARD (Light Theme) --- */
+    .glass-card {
+        width: 100%;
+        max-width: 420px;
+        padding: 3rem 2.5rem;
+
+        /* Ultra-Premium Light Glass */
+        background: rgba(255, 255, 255, 0.65);
+        backdrop-filter: blur(25px) saturate(180%);
+        -webkit-backdrop-filter: blur(25px) saturate(180%);
+        border: 1px solid rgba(255, 255, 255, 0.8);
+        border-radius: 28px;
+
+        box-shadow:
+            0 20px 40px -10px rgba(0, 0, 0, 0.05),
+            /* Soft shadow */
+            0 0 0 1px rgba(255, 255, 255, 0.5) inset;
+
+        text-align: center;
+        animation: slideUpFade 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+    }
+
+    /* --- CONTENT --- */
+    .brand-logo-top {
+        width: 80px;
+        height: auto;
+        margin-bottom: 1.5rem;
+        filter: drop-shadow(0 10px 15px rgba(52, 211, 153, 0.3));
+        /* Funky bounce on load */
+        animation: bounceIn 1s cubic-bezier(0.175, 0.885, 0.32, 1.275) 0.2s forwards;
+        transform: scale(0);
+        /* Start hidden */
+    }
+
+    @keyframes bounceIn {
+        from {
+            transform: scale(0);
+        }
+
+        to {
+            transform: scale(1);
+        }
+    }
+
+    .app-title {
+        font-size: 2rem;
+        font-weight: 800;
+        letter-spacing: -1px;
+        margin-bottom: 0.5rem;
+        background: linear-gradient(135deg, #0f172a 0%, #334155 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+
+    .app-subtitle {
+        color: #64748b;
+        font-weight: 500;
+        margin-bottom: 2.5rem;
+        font-size: 0.95rem;
+    }
+
+    /* --- FORM INPUTS --- */
+    .input-group-custom {
+        margin-bottom: 1.25rem;
+        text-align: left;
+    }
+
+    .form-control-custom {
+        width: 100%;
+        padding: 1rem 1.25rem;
+        background: rgba(255, 255, 255, 0.7);
+        border: 2px solid transparent;
+        border-radius: 16px;
+        color: #1e293b;
+        font-family: 'Outfit', sans-serif;
+        font-weight: 600;
+        font-size: 1rem;
+        transition: all 0.25s ease;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02);
+    }
+
+    .form-control-custom:focus {
+        outline: none;
+        background: #ffffff;
+        border-color: #34d399;
+        /* Funky Green Border */
+        transform: scale(1.02);
+        box-shadow: 0 10px 15px -3px rgba(52, 211, 153, 0.15);
+    }
+
+    /* --- BUTTON --- */
+    .btn-submit {
+        margin-top: 1rem;
+        width: 100%;
+        padding: 1rem;
+        border: none;
+        border-radius: 16px;
+        background: linear-gradient(135deg, #10b981 0%, #3b82f6 100%);
+        /* Green to Blue Gradient */
         color: white;
+        font-weight: 700;
+        font-size: 1.1rem;
+        cursor: pointer;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         position: relative;
         overflow: hidden;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        /* FIXED: Responsive padding to fit all screens */
-        padding: 5vh 5vw; 
     }
 
-    /* Texture Overlay */
-    .brand-section::after {
-        content: "";
+    /* Button Shine Effect */
+    .btn-submit::after {
+        content: '';
         position: absolute;
-        top: 0; left: 0; width: 100%; height: 100%;
-        background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-        pointer-events: none;
-    }
-
-    .brand-content {
-        position: relative;
-        z-index: 10;
-        max-width: 600px;
-        margin: 0 auto;
-    }
-
-
-
-    /* Glass Logo Box */
-    .logo-container {
-        background: rgba(255, 255, 255, 0.1);
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        border-radius: 20px;
-        padding: 20px;
-        display: inline-block;
-        margin-bottom: 2rem;
-        width: fit-content;
-    }
-
-    /* SAFE LOGO SIZING */
-    .logo-desktop { 
-        height: 100px; 
-        width: auto; 
-        max-width: 100%; 
-        object-fit: contain; 
-        display: block;
-    }
-
-    /* --- RIGHT SIDE: FORM --- */
-    .form-section {
-        display: flex;
-        align-items: center;
-        justify-content: flex-start; 
-        background-color: #ffffff;
-        padding-left: 8vw; 
-        padding-right: 2rem;
-        height: 100%; 
-        overflow-y: auto; /* Allow scrolling if vertical height is too small */
-    }
-
-    .form-container {
+        top: 0;
+        left: -100%;
         width: 100%;
-        max-width: 400px;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+        transition: 0.5s;
     }
 
-    /* Form Elements */
-    .form-control {
-        background-color: #f9fafb;
-        border: 1px solid #e5e7eb;
-        padding: 0.8rem 1rem;
-        border-radius: 8px;
-        font-size: 0.95rem;
-        transition: all 0.2s;
-    }
-    .form-control:focus {
-        background-color: #fff;
-        border-color: #000;
-        box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.1);
+    .btn-submit:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 20px 25px -5px rgba(59, 130, 246, 0.4);
     }
 
-    .btn-login {
-        background-color: #000;
-        color: white;
+    .btn-submit:hover::after {
+        left: 100%;
+    }
+
+    .copyright {
+        margin-top: 2.5rem;
+        color: #94a3b8;
+        font-size: 0.8rem;
+        font-weight: 500;
+    }
+
+    .loading-indicator {
+        display: none;
+        margin-top: 10px;
+        color: #34d399;
         font-weight: 600;
-        padding: 0.8rem;
-        border-radius: 8px;
-        width: 100%;
-        transition: all 0.2s;
-    }
-    .btn-login:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-    }
-
-    .logo-mobile { 
-        height: 70px; width: auto; object-fit: contain; 
-        margin-bottom: 20px;
-    }
-
-    /* --- MOBILE RESPONSIVENESS (< 992px) --- */
-    @media (max-width: 991.98px) {
-        .login-wrapper {
-            height: auto; 
-            min-height: 100vh;
-            overflow-y: auto;
-        }
-        .form-section {
-            justify-content: center;
-            padding: 3rem 1.5rem;
-            height: auto;
-        }
-        .brand-section {
-            padding: 4rem 2rem;
-            min-height: 40vh; /* Visible on mobile */
-        }
-        .logo-mobile { display: inline-block; }
+        font-size: 0.9rem;
     }
 </style>
 
-<div class="container-fluid p-0">
-    <div class="row g-0 login-wrapper">
-        
-        <div class="col-lg-6 d-none d-lg-flex brand-section">
-            <div class="brand-content">
-                
-                <div class="logo-container">
-                    <img src="{% static 'tracker/logo.png' %}" alt="Logo" class="logo-desktop">
-                </div>
-                
-                <h1 class="display-5 fw-bold mb-3">Track Operations.</h1>
-                <h1 class="display-5 fw-bold mb-3">Deliver Faster</h1>
-                <p class="fs-5 opacity-75 fw-light">
-                    Real-time project tracking, evidence collection, and validation.
-                </p>
+<!-- Animated Background Blobs -->
+<div class="background-container">
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+    <div class="blob blob-3"></div>
+</div>
+
+<div class="login-container">
+    <div class="glass-card">
+
+        <!-- Logo with Bounce Animation -->
+        <img src="{% static 'tracker/logo-icon.png' %}" alt="Nexsafe" class="brand-logo-top">
+
+        <!-- Headers -->
+        <h1 class="app-title">Nexsafe SPA</h1>
+        <p class="app-subtitle">Secure Project Access</p>
+
+        <!-- Form -->
+        <form method="post" onsubmit="showLoading()">
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+            <div class="alert alert-danger border-0 bg-danger-subtle text-danger rounded-4 mb-4 fw-bold small p-3">
+                <i class="bi bi-exclamation-octagon-fill me-2"></i> {{ form.non_field_errors.0 }}
             </div>
-        </div>
+            {% endif %}
 
-        <div class="col-lg-6 form-section">
-            <div class="form-container">
-                
-                <div class="d-lg-none text-center">
-                    <img src="{% static 'tracker/logo.png' %}" alt="Logo" class="logo-mobile">
-                </div>
-
-                <div class="mb-4">
-                    <h3 class="fw-bold text-dark">Nexsafe</h3>
-                    <h3 class="fw-bold text-dark">Secure Project Access</h3>
-                    <p class="text-muted small">Please enter your details.</p>
-                </div>
-
-                <form method="post">
-                    {% csrf_token %}
-                    
-                    {% if form.non_field_errors %}
-                        <div class="alert alert-danger py-2 small rounded-3 mb-3 border-0 bg-danger-subtle text-danger">
-                            <i class="bi bi-exclamation-circle-fill me-1"></i> {{ form.non_field_errors }}
-                        </div>
-                    {% endif %}
-
-                    <div class="mb-3">
-                        <label class="form-label fw-bold small text-muted" style="font-size: 0.75rem; letter-spacing: 0.5px;">USERNAME</label>
-                        <input type="text" name="username" class="form-control" required autofocus>
-                    </div>
-
-                    <div class="mb-4">
-                        <label class="form-label fw-bold small text-muted" style="font-size: 0.75rem; letter-spacing: 0.5px;">PASSWORD</label>
-                        <input type="password" name="password" class="form-control" required>
-                    </div>
-
-                    <button type="submit" class="btn btn-login">Sign In</button>
-
-                    <div class="text-center mt-4">
-                        <small class="text-muted opacity-50">&copy; {% now "Y" %} Nexsafe Systems</small>
-                    </div>
-                </form>
+            <div class="input-group-custom">
+                <input type="text" name="username" class="form-control-custom" placeholder="Username" required
+                    autofocus>
             </div>
-        </div>
 
+            <div class="input-group-custom">
+                <input type="password" name="password" class="form-control-custom" placeholder="Password" required>
+            </div>
+
+            <button type="submit" class="btn-submit">
+                Enter Portal
+            </button>
+
+            <div id="loading" class="loading-indicator">
+                <div class="spinner-border spinner-border-sm me-2" role="status"></div> Authenticating...
+            </div>
+        </form>
+
+        <div class="copyright">
+            &copy; {% now "Y" %} Nexsafe Energy Infra Pvt Ltd.
+        </div>
     </div>
 </div>
+
+<script>
+    function showLoading() {
+        const btn = document.querySelector('.btn-submit');
+        const loader = document.getElementById('loading');
+        btn.style.opacity = '0.5';
+        btn.style.pointerEvents = 'none';
+        loader.style.display = 'block';
+    }
+</script>
 {% endblock %}

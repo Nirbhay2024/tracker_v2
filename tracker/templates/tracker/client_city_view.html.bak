@@ -41,7 +41,6 @@
         position: relative;
         overflow: hidden;
         height: 240px;
-        cursor: pointer;
     }
 
     .pole-card-img {
@@ -169,36 +168,6 @@
         right: 24px;
     }
 
-    /* --- THUMBNAILS --- */
-    .gallery-thumbs {
-        display: flex;
-        gap: 10px;
-        overflow-x: auto;
-        padding-bottom: 10px;
-        margin-top: 20px;
-        margin-bottom: 20px;
-    }
-
-    .gallery-thumb {
-        width: 60px;
-        height: 60px;
-        object-fit: cover;
-        border-radius: 8px;
-        cursor: pointer;
-        opacity: 0.5;
-        transition: all 0.2s;
-        border: 2px solid transparent;
-        flex-shrink: 0;
-    }
-
-    .gallery-thumb:hover,
-    .gallery-thumb.active {
-        opacity: 1;
-        border-color: #198754;
-        /* Bootstrap success color */
-        transform: scale(1.05);
-    }
-
     @media (max-width: 992px) {
         .gallery-layout {
             grid-template-columns: 1fr;
@@ -207,16 +176,10 @@
 
         .gallery-sidebar {
             height: auto;
-            max-height: 50vh;
+            max-height: 40vh;
             border-left: none;
             border-top: 1px solid #333;
             padding: 1.5rem;
-        }
-
-        .gallery-thumbs {
-            order: -1;
-            /* Show thumbs at top of sidebar on mobile */
-            margin-top: 0;
         }
 
         .nav-arrow {
@@ -264,13 +227,14 @@
 <!-- HEADER -->
 <div class="glass-header py-3 mb-4">
     <div class="container-fluid" style="max-width: 1400px;">
-
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
 
             <!-- Branding -->
             <div class="d-flex align-items-center">
                 <h2 class="m-0 fw-bold text-dark me-3"
-                    style="font-family: 'Outfit', sans-serif; letter-spacing: -0.5px;">{{ project.name }}</h2>
+                    style="font-family: 'Outfit', sans-serif; letter-spacing: -0.5px;">
+                    {{ project.name }}
+                </h2>
                 <div class="d-none d-md-block border-start ps-3 border-dark border-opacity-25">
                     <span class="text-muted small fw-bold text-uppercase ls-1">Client View</span>
                 </div>
@@ -286,7 +250,7 @@
                         style="width: 160px; font-size: 0.9rem;" onchange="this.form.submit()">
                         <option value="">All Locations</option>
                         {% for opt in filter_options %}
-                        <option value="{{ opt }}" {% if current_filter==opt %}selected{% endif %}>{{ opt }}</option>
+                        <option value="{{ opt }}" {% if current_filter == opt %}selected{% endif %}>{{ opt }}</option>
                         {% endfor %}
                     </select>
                 </form>
@@ -438,15 +402,6 @@
                             <p class="text-white-50 small mb-0">{{ project.name }}</p>
                         </div>
 
-                        <!-- THUMBNAILS -->
-                        <div class="mb-4">
-                            <small class="text-white-50 text-uppercase fw-bold ls-1 mb-2 d-block">All Photos</small>
-                            <div id="galThumbs" class="gallery-thumbs">
-                                <!-- JS Injected Thumbs -->
-                            </div>
-                        </div>
-
-
                         <div class="mb-4">
                             <small class="text-white-50 text-uppercase fw-bold ls-1 mb-2 d-block">Current Stage</small>
                             <h3 class="text-success fw-bold display-6 mb-2" id="galStage">Stage Name</h3>
@@ -545,23 +500,6 @@
         document.getElementById('galStage').innerText = photo.stage;
         document.getElementById('galTime').innerText = photo.time || "No Timestamp";
         document.getElementById('galCounter').innerText = `${activeIndex + 1} / ${data.photos.length}`;
-
-        // Update Thumbs
-        const thumbsContainer = document.getElementById('galThumbs');
-        thumbsContainer.innerHTML = '';
-        data.photos.forEach((p, idx) => {
-            thumbsContainer.innerHTML += `
-                <img src="${p.url}" 
-                     class="gallery-thumb ${idx === activeIndex ? 'active' : ''}" 
-                     onclick="openGallery('${activePoleId}', ${idx})">
-            `;
-        });
-        // Scroll active thumb into view if needed
-        setTimeout(() => {
-            const activeThumb = thumbsContainer.querySelector('.gallery-thumb.active');
-            if (activeThumb) activeThumb.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-        }, 100);
-
 
         const metaContainer = document.getElementById('galMetaList');
         metaContainer.innerHTML = '';

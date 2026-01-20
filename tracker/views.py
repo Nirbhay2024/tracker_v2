@@ -9,8 +9,9 @@ from django.views.decorators.cache import never_cache
 from django.contrib import messages
 from django.http import HttpResponse
 from django.core.exceptions import PermissionDenied
-from django.db.models import Q
+from django.db.models import Q, Count, Case, When, IntegerField, Prefetch
 from django.utils import timezone
+from django.core.paginator import Paginator
 from .models import Project, Pole, StageDefinition, Evidence, ItemFieldValue, Client, ProjectIssue, ProjectLog
 from .forms import EvidenceForm, DynamicItemForm, IssueForm
 from .utils import watermark_image, get_gps_from_image, rate_limit
@@ -390,53 +391,54 @@ def client_dashboard(request, client_uuid):
 @rate_limit(limit=60, period=60)
 def client_city_view(request, client_uuid):
     project = get_object_or_404(Project, client_uuid=client_uuid)
-    # NOTE: We will secure this with a PIN in the next step
     
-    poles = project.poles.all()
-    total = poles.count()
-    done = poles.filter(is_completed=True).count()
-    progress = int((done/total)*100) if total > 0 else 0
-    
+    # 1. Base Query with Eager Loading (Fixes N+1)
+    # We prefetch 'evidence' (images) and 'custom_values' (metadata) so they don't trigger new queries.
+    poles = project.poles.select_related('project') \
+        .prefetch_related(
+            'evidence__stage',          # For image captions
+            'custom_values__field_def', # For metadata labels
+            'issues'                    # For flag icons
+        ).order_by('id')
+
+    # 2. Stats Calculation (Efficient Aggregation)
+    total_poles = poles.count()
+    completed_poles = poles.filter(is_completed=True).count()
+    progress = int((completed_poles / total_poles) * 100) if total_poles > 0 else 0
+
+    # 3. Dynamic Filter Options
+    # We find the "Grouping Key" (e.g., Village) and get all unique values for the dropdown
     group_def = project.field_definitions.filter(is_grouping_key=True).first()
-    grouped_data = {}
-    
+    filter_options = []
     if group_def:
-        for pole in poles:
-            val_obj = pole.custom_values.filter(field_def=group_def).first()
-            village_name = val_obj.value if (val_obj and val_obj.value) else "General"
-            if village_name not in grouped_data:
-                grouped_data[village_name] = {'poles': [], 'done': 0, 'total': 0}
-            history = pole.evidence.all().order_by('stage__order')
-            custom_data = pole.custom_values.select_related('field_def').all()
-            has_issue = pole.issues.filter(status='OPEN').exists()
-            grouped_data[village_name]['poles'].append({
-                'pole': pole,
-                'history': history,
-                'has_issue': has_issue,
-                'custom_data': custom_data
-            })
-            grouped_data[village_name]['total'] += 1
-            if pole.is_completed:
-                grouped_data[village_name]['done'] += 1
-        for v_name, data in grouped_data.items():
-            data['percent'] = int((data['done'] / data['total']) * 100) if data['total'] > 0 else 0
-        grouped_data = dict(sorted(grouped_data.items()))
-    else:
-        grouped_data['All Locations'] = {'poles': [], 'done': done, 'total': total, 'percent': progress}
-        for pole in poles:
-            history = pole.evidence.all().order_by('stage__order')
-            custom_data = pole.custom_values.select_related('field_def').all()
-            has_issue = pole.issues.filter(status='OPEN').exists()
-            grouped_data['All Locations']['poles'].append({
-                'pole': pole, 
-                'history': history,
-                'has_issue': has_issue,
-                'custom_data': custom_data
-            })
+        # Get distinct values for this field efficiently
+        filter_options = ItemFieldValue.objects.filter(
+            pole__project=project, 
+            field_def=group_def
+        ).values_list('value', flat=True).distinct().order_by('value')
+
+    # 4. Apply Filtering
+    current_filter = request.GET.get('village', '')
+    if current_filter and group_def:
+        poles = poles.filter(custom_values__field_def=group_def, custom_values__value=current_filter)
+
+    # 5. Pagination (50 items per page)
+    paginator = Paginator(poles, 50)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    print(f"DEBUG: Client View - Total Poles: {total_poles}")
+    print(f"DEBUG: Client View - Page Obj Count: {len(page_obj)}")
+    print(f"DEBUG: Client View - Current Filter: {current_filter}")
+
     return render(request, 'tracker/client_city_view.html', {
         'project': project,
-        'grouped_data': grouped_data,
-        'progress': progress
+        'page_obj': page_obj,           # The paginated list of poles
+        'total_poles': total_poles,
+        'completed_poles': completed_poles,
+        'progress': progress,
+        'filter_options': filter_options,
+        'current_filter': current_filter
     })
 
 @rate_limit(limit=5, period=300) # Strict limit: 5 reports per 5 mins
@@ -482,7 +484,5 @@ def resolve_issue(request, issue_id):
     
     messages.success(request, "Issue marked as resolved.")
     return redirect('project_issues', project_id=issue.pole.project.id)
-
-
 
     # [FIX] SECURITY: REMOVED create_admin_temp COMPLETELY

@@ -41,7 +41,6 @@
         position: relative;
         overflow: hidden;
         height: 240px;
-        cursor: pointer;
     }
 
     .pole-card-img {
@@ -96,7 +95,7 @@
         text-overflow: ellipsis;
     }
 
-    /* --- GALLERY MODAL (SPLIT VIEW) --- */
+    /* --- GALLERY MODAL (SCROLL VIEW) --- */
     .modal-fullscreen .modal-content {
         background-color: #0b0b0b;
         color: white;
@@ -110,19 +109,57 @@
     }
 
     .gallery-stage {
-        position: relative;
-        display: flex;
-        align-items: center;
-        justify-content: center;
         background-color: #000;
-        overflow: hidden;
+        overflow-y: auto; /* Allow scrolling */
+        padding: 3rem 1rem;
+        display: block;
+    }
+
+    /* Custom Scrollbar for Gallery */
+    .gallery-stage::-webkit-scrollbar {
+        width: 8px;
+    }
+    .gallery-stage::-webkit-scrollbar-track {
+        background: #000;
+    }
+    .gallery-stage::-webkit-scrollbar-thumb {
+        background: #333;
+        border-radius: 4px;
+    }
+
+    .gallery-item-container {
+        max-width: 900px;
+        margin: 0 auto 4rem auto;
+        text-align: center;
+        opacity: 0;
+        animation: fadeIn 0.5s ease forwards;
+    }
+
+    @keyframes fadeIn {
+        to { opacity: 1; }
     }
 
     .gallery-img {
-        max-height: 100vh;
+        max-height: 85vh;
         max-width: 100%;
         object-fit: contain;
-        transition: opacity 0.3s ease;
+        box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+        border-radius: 4px;
+    }
+
+    .stage-label {
+        display: inline-block;
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        padding: 8px 20px;
+        border-radius: 30px;
+        color: white;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 1rem;
+        font-size: 0.9rem;
     }
 
     .gallery-sidebar {
@@ -133,70 +170,7 @@
         flex-direction: column;
         overflow-y: auto;
         box-shadow: -10px 0 30px rgba(0, 0, 0, 0.5);
-    }
-
-    .nav-arrow {
-        position: absolute;
-        top: 50%;
-        transform: translateY(-50%);
-        width: 56px;
-        height: 56px;
-        background: rgba(255, 255, 255, 0.1);
-        backdrop-filter: blur(4px);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        color: white;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        transition: all 0.2s;
         z-index: 10;
-        font-size: 1.5rem;
-    }
-
-    .nav-arrow:hover {
-        background: rgba(255, 255, 255, 0.9);
-        color: black;
-        transform: translateY(-50%) scale(1.1);
-    }
-
-    .nav-prev {
-        left: 24px;
-    }
-
-    .nav-next {
-        right: 24px;
-    }
-
-    /* --- THUMBNAILS --- */
-    .gallery-thumbs {
-        display: flex;
-        gap: 10px;
-        overflow-x: auto;
-        padding-bottom: 10px;
-        margin-top: 20px;
-        margin-bottom: 20px;
-    }
-
-    .gallery-thumb {
-        width: 60px;
-        height: 60px;
-        object-fit: cover;
-        border-radius: 8px;
-        cursor: pointer;
-        opacity: 0.5;
-        transition: all 0.2s;
-        border: 2px solid transparent;
-        flex-shrink: 0;
-    }
-
-    .gallery-thumb:hover,
-    .gallery-thumb.active {
-        opacity: 1;
-        border-color: #198754;
-        /* Bootstrap success color */
-        transform: scale(1.05);
     }
 
     @media (max-width: 992px) {
@@ -207,30 +181,15 @@
 
         .gallery-sidebar {
             height: auto;
-            max-height: 50vh;
+            max-height: 40vh;
             border-left: none;
             border-top: 1px solid #333;
             padding: 1.5rem;
+            order: 2;
         }
-
-        .gallery-thumbs {
-            order: -1;
-            /* Show thumbs at top of sidebar on mobile */
-            margin-top: 0;
-        }
-
-        .nav-arrow {
-            width: 44px;
-            height: 44px;
-            font-size: 1.2rem;
-        }
-
-        .nav-prev {
-            left: 12px;
-        }
-
-        .nav-next {
-            right: 12px;
+        
+        .gallery-stage {
+            order: 1;
         }
     }
 
@@ -261,13 +220,11 @@
     }
 </style>
 
-<!-- HEADER -->
 <div class="glass-header py-3 mb-4">
     <div class="container-fluid" style="max-width: 1400px;">
 
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
 
-            <!-- Branding -->
             <div class="d-flex align-items-center">
                 <h2 class="m-0 fw-bold text-dark me-3"
                     style="font-family: 'Outfit', sans-serif; letter-spacing: -0.5px;">{{ project.name }}</h2>
@@ -276,7 +233,6 @@
                 </div>
             </div>
 
-            <!-- Controls -->
             <div class="d-flex align-items-center gap-3">
                 {% if filter_options %}
                 <form method="get" class="d-flex align-items-center bg-white rounded-pill border p-1 ps-3 shadow-sm">
@@ -286,13 +242,12 @@
                         style="width: 160px; font-size: 0.9rem;" onchange="this.form.submit()">
                         <option value="">All Locations</option>
                         {% for opt in filter_options %}
-                        <option value="{{ opt }}" {% if current_filter==opt %}selected{% endif %}>{{ opt }}</option>
+                        <option value="{{ opt }}" {% if current_filter == opt %}selected{% endif %}>{{ opt }}</option>
                         {% endfor %}
                     </select>
                 </form>
                 {% endif %}
 
-                <!-- Progress Ring -->
                 <div class="position-relative d-flex align-items-center justify-content-center"
                     style="width: 48px; height: 48px;">
                     <svg viewBox="0 0 36 36" class="circular-chart text-success w-100 h-100">
@@ -303,15 +258,13 @@
                             d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                             fill="none" stroke="currentColor" stroke-width="3" />
                     </svg>
-                    <span class="position-absolute small fw-bold text-dark" style="font-size: 0.7rem;">{{ progress
-                        }}%</span>
+                    <span class="position-absolute small fw-bold text-dark" style="font-size: 0.7rem;">{{ progress }}%</span>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- MAIN GRID -->
 <div class="container-fluid pb-5" style="max-width: 1400px;">
 
     {% if page_obj|length == 0 %}
@@ -327,8 +280,7 @@
         <div class="col-sm-6 col-lg-4 col-xxl-3">
             <div class="card h-100 pole-card rounded-4 overflow-hidden">
 
-                <!-- Hero Image -->
-                <div class="pole-card-img-wrapper cursor-pointer" onclick="openGallery('{{ pole.id }}', 0)">
+                <div class="pole-card-img-wrapper cursor-pointer" onclick="openGallery('{{ pole.id }}')">
                     {% with cover=pole.evidence.all.first %}
                     {% if cover %}
                     <img src="{{ cover.image.url }}" class="pole-card-img" alt="Pole Evidence">
@@ -342,7 +294,6 @@
                     {% endif %}
                     {% endwith %}
 
-                    <!-- Floating Badges -->
                     <div
                         class="position-absolute top-0 start-0 w-100 p-3 d-flex justify-content-between align-items-start pointer-events-none">
                         <span class="badge status-badge rounded-pill px-3 py-2">
@@ -358,7 +309,6 @@
                     </div>
                 </div>
 
-                <!-- Card Body -->
                 <div class="card-body p-4 d-flex flex-column">
                     <div class="row g-2 mb-4">
                         {% for val in pole.custom_values.all|slice:":4" %}
@@ -373,7 +323,7 @@
 
                     <div class="mt-auto d-flex gap-2">
                         <button class="btn btn-dark flex-grow-1 rounded-pill fw-bold py-2 shadow-sm"
-                            onclick="openGallery('{{ pole.id }}', 0)">
+                            onclick="openGallery('{{ pole.id }}')">
                             <i class="bi bi-images me-2"></i>View Photos
                         </button>
                         <button class="btn btn-light border flex-shrink-0 rounded-circle"
@@ -388,7 +338,6 @@
         {% endfor %}
     </div>
 
-    <!-- Pagination -->
     {% if page_obj.has_other_pages %}
     <div class="d-flex justify-content-center mt-5">
         <nav>
@@ -410,7 +359,6 @@
     {% endif %}
 </div>
 
-<!-- PREMIUM GALLERY MODAL -->
 <div class="modal fade" id="galleryModal" tabindex="-1" aria-hidden="true" data-bs-keyboard="true">
     <div class="modal-dialog modal-fullscreen">
         <div class="modal-content border-0">
@@ -421,16 +369,11 @@
 
                 <div class="gallery-layout">
 
-                    <!-- Left: Image Stage -->
-                    <div class="gallery-stage">
-                        <div class="nav-arrow nav-prev" onclick="navigateGallery(-1)"><i class="bi bi-chevron-left"></i>
-                        </div>
-                        <img id="galleryImage" src="" class="gallery-img">
-                        <div class="nav-arrow nav-next" onclick="navigateGallery(1)"><i class="bi bi-chevron-right"></i>
-                        </div>
+                    <div class="gallery-stage" id="galleryStage">
+                        <div id="galleryContent" class="d-flex flex-column align-items-center">
+                            </div>
                     </div>
 
-                    <!-- Right: Info Sidebar -->
                     <div class="gallery-sidebar text-white">
                         <div class="mb-4 pb-4 border-bottom border-secondary border-opacity-25">
                             <small class="text-white-50 text-uppercase fw-bold ls-1 mb-1 d-block">Project Item</small>
@@ -438,33 +381,17 @@
                             <p class="text-white-50 small mb-0">{{ project.name }}</p>
                         </div>
 
-                        <!-- THUMBNAILS -->
                         <div class="mb-4">
-                            <small class="text-white-50 text-uppercase fw-bold ls-1 mb-2 d-block">All Photos</small>
-                            <div id="galThumbs" class="gallery-thumbs">
-                                <!-- JS Injected Thumbs -->
-                            </div>
-                        </div>
-
-
-                        <div class="mb-4">
-                            <small class="text-white-50 text-uppercase fw-bold ls-1 mb-2 d-block">Current Stage</small>
-                            <h3 class="text-success fw-bold display-6 mb-2" id="galStage">Stage Name</h3>
-                            <div class="d-flex align-items-center gap-2 text-white-50 small">
-                                <i class="bi bi-clock"></i> <span id="galTime">--</span>
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <small class="text-white-50 text-uppercase fw-bold ls-1">Photos</small>
+                                <span class="badge bg-white text-dark rounded-pill" id="galPhotoCount">0</span>
                             </div>
                         </div>
 
                         <div class="mb-4">
                             <small class="text-white-50 text-uppercase fw-bold ls-1 mb-3 d-block">Item Details</small>
                             <div id="galMetaList" class="d-flex flex-column gap-3">
-                                <!-- JS Injected Items -->
-                            </div>
-                        </div>
-
-                        <div class="mt-auto pt-4 border-top border-secondary border-opacity-25 text-center">
-                            <span class="badge bg-white text-dark rounded-pill px-3 py-2 fw-bold font-monospace"
-                                id="galCounter">1 / 5</span>
+                                </div>
                         </div>
                     </div>
 
@@ -474,7 +401,6 @@
     </div>
 </div>
 
-<!-- JS DATA INJECTION -->
 <script>
     const poleData = {
         {% for pole in page_obj %}
@@ -500,69 +426,22 @@
     {% endfor %}
     };
 
-    let activePoleId = null;
-    let activeIndex = 0;
     const modalEl = document.getElementById('galleryModal');
     const bsModal = new bootstrap.Modal(modalEl);
 
-    function openGallery(poleId, index) {
-        if (!poleData[poleId] || poleData[poleId].photos.length === 0) {
-            alert("No photos uploaded yet for this item.");
+    function openGallery(poleId) {
+        if (!poleData[poleId]) {
+            alert("Error loading item data.");
             return;
         }
-        activePoleId = poleId;
-        activeIndex = index;
-        renderGallery();
-        bsModal.show();
-    }
 
-    function navigateGallery(delta) {
-        const photos = poleData[activePoleId].photos;
-        activeIndex += delta;
-        if (activeIndex < 0) activeIndex = photos.length - 1;
-        if (activeIndex >= photos.length) activeIndex = 0;
-        renderGallery();
-    }
-
-    document.addEventListener('keydown', (e) => {
-        if (!modalEl.classList.contains('show')) return;
-        if (e.key === 'ArrowLeft') navigateGallery(-1);
-        if (e.key === 'ArrowRight') navigateGallery(1);
-    });
-
-    function renderGallery() {
-        const data = poleData[activePoleId];
-        const photo = data.photos[activeIndex];
-
-        const img = document.getElementById('galleryImage');
-        img.style.opacity = 0;
-        setTimeout(() => {
-            img.src = photo.url;
-            img.style.opacity = 1;
-        }, 150);
-
+        const data = poleData[poleId];
+        const container = document.getElementById('galleryContent');
+        
+        // 1. Update Sidebar
         document.getElementById('galPoleID').innerText = data.identifier;
-        document.getElementById('galStage').innerText = photo.stage;
-        document.getElementById('galTime').innerText = photo.time || "No Timestamp";
-        document.getElementById('galCounter').innerText = `${activeIndex + 1} / ${data.photos.length}`;
-
-        // Update Thumbs
-        const thumbsContainer = document.getElementById('galThumbs');
-        thumbsContainer.innerHTML = '';
-        data.photos.forEach((p, idx) => {
-            thumbsContainer.innerHTML += `
-                <img src="${p.url}" 
-                     class="gallery-thumb ${idx === activeIndex ? 'active' : ''}" 
-                     onclick="openGallery('${activePoleId}', ${idx})">
-            `;
-        });
-        // Scroll active thumb into view if needed
-        setTimeout(() => {
-            const activeThumb = thumbsContainer.querySelector('.gallery-thumb.active');
-            if (activeThumb) activeThumb.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-        }, 100);
-
-
+        document.getElementById('galPhotoCount').innerText = data.photos.length;
+        
         const metaContainer = document.getElementById('galMetaList');
         metaContainer.innerHTML = '';
 
@@ -570,25 +449,54 @@
             metaContainer.innerHTML += `
                 <div class="d-flex justify-content-between border-bottom border-secondary border-opacity-10 pb-2">
                     <span class="text-white-50 small">${m.label}</span>
-                    <span class="fw-bold small">${m.value}</span>
+                    <span class="fw-bold small text-end text-break ms-3">${m.value}</span>
                 </div>
             `;
         });
 
-        if (photo.lat && photo.long) {
-            metaContainer.innerHTML += `
-                <div class="d-flex justify-content-between border-bottom border-secondary border-opacity-10 pb-2">
-                    <span class="text-white-50 small">GPS Location</span>
-                    <a href="https://maps.google.com/?q=${photo.lat},${photo.long}" target="_blank" class="fw-bold small text-info text-decoration-none">
-                        <i class="bi bi-geo-alt-fill"></i> View Map
-                    </a>
+        // 2. Build Image Feed
+        container.innerHTML = ''; // Clear previous
+
+        if (data.photos.length === 0) {
+            container.innerHTML = `
+                <div class="text-white-50 text-center mt-5 pt-5">
+                    <i class="bi bi-camera-video-off display-1 mb-3 d-block opacity-25"></i>
+                    <p class="lead">No photos uploaded for this item yet.</p>
                 </div>
             `;
+        } else {
+            data.photos.forEach((photo, index) => {
+                let locationHtml = '';
+                if(photo.lat && photo.long) {
+                    locationHtml = `
+                        <a href="https://maps.google.com/?q=${photo.lat},${photo.long}" target="_blank" class="text-white-50 text-decoration-none small ms-3">
+                            <i class="bi bi-geo-alt-fill text-danger"></i> View Map
+                        </a>
+                    `;
+                }
+
+                container.innerHTML += `
+                    <div class="gallery-item-container" style="animation-delay: ${index * 0.1}s">
+                        
+                        <div class="stage-label">
+                            ${photo.stage}
+                        </div>
+
+                        <img src="${photo.url}" class="gallery-img mb-3">
+
+                        <div class="d-flex justify-content-center align-items-center text-white-50 small font-monospace">
+                            <span><i class="bi bi-clock me-1"></i> ${photo.time || 'Unknown Time'}</span>
+                            ${locationHtml}
+                        </div>
+                    </div>
+                `;
+            });
         }
+
+        bsModal.show();
     }
 </script>
 
-<!-- FLAG MODAL -->
 <div class="modal fade" id="flagModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 rounded-4 shadow">
